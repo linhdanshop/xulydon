@@ -2,62 +2,147 @@
 <html lang="vi">
 <head>
 <meta charset="UTF-8">
-<title>Call Dashboard PRO</title>
+<title>Call Dashboard</title>
 
 <style>
 body{
     font-family: Arial;
-    background:#0f172a;
-    color:#fff;
+    background:#f5f7fb;
+    color:#111;
     padding:20px;
 }
-h2{margin-bottom:10px;}
+
+/* LOGIN */
+#loginBox{
+    max-width:300px;
+    margin:100px auto;
+    text-align:center;
+}
+
+/* INPUT */
+input{
+    padding:10px;
+    width:100%;
+    margin-bottom:10px;
+    border:1px solid #ccc;
+    border-radius:6px;
+}
+
+button{
+    padding:10px;
+    border:none;
+    border-radius:6px;
+    background:#2563eb;
+    color:#fff;
+    font-weight:bold;
+    cursor:pointer;
+}
+
+/* DASHBOARD */
+#app{display:none;}
 
 .controls{
     margin-bottom:15px;
 }
 
-input{
-    padding:8px;
+.controls input{
+    width:auto;
     margin-right:10px;
-    border-radius:6px;
-    border:none;
 }
 
-button{
-    padding:8px 12px;
-    border:none;
-    border-radius:6px;
-    cursor:pointer;
-    background:#22c55e;
-    color:#000;
+/* STATS BOX */
+.stats{
+    display:flex;
+    gap:15px;
+    margin-bottom:20px;
+}
+
+.card{
+    flex:1;
+    background:#fff;
+    padding:15px;
+    border-radius:10px;
+    box-shadow:0 2px 6px rgba(0,0,0,0.1);
+    text-align:center;
+}
+
+.card h3{
+    margin:0;
+    font-size:18px;
+    color:#666;
+}
+
+.card p{
+    font-size:22px;
     font-weight:bold;
+    margin-top:5px;
 }
 
+/* TABLE */
 table{
     width:100%;
     border-collapse:collapse;
-    background:#1e293b;
+    background:#fff;
+    border-radius:10px;
+    overflow:hidden;
 }
 
 th, td{
     padding:10px;
     text-align:center;
+    border-bottom:1px solid #eee;
 }
 
-th{background:#334155;}
-tr:nth-child(even){background:#0f172a;}
+th{
+    background:#2563eb;
+    color:#fff;
+}
+
+tr:hover{
+    background:#f1f5f9;
+}
 </style>
 </head>
 
 <body>
 
-<h2>📞 CALL DASHBOARD PRO</h2>
+<!-- LOGIN -->
+<div id="loginBox">
+    <h2>🔐 Đăng nhập</h2>
+    <input type="password" id="pass" placeholder="Nhập mật khẩu">
+    <button onclick="login()">Vào hệ thống</button>
+    <p id="err" style="color:red;"></p>
+</div>
+
+<!-- APP -->
+<div id="app">
+
+<h2>📞 CALL DASHBOARD</h2>
+
+<!-- 🔥 THỐNG KÊ -->
+<div class="stats">
+    <div class="card">
+        <h3>Tổng cuộc gọi</h3>
+        <p id="total">0</p>
+    </div>
+    <div class="card">
+        <h3>Gọi đến</h3>
+        <p id="in">0</p>
+    </div>
+    <div class="card">
+        <h3>Gọi đi</h3>
+        <p id="out">0</p>
+    </div>
+    <div class="card">
+        <h3>Gọi nhỡ</h3>
+        <p id="miss">0</p>
+    </div>
+</div>
 
 <div class="controls">
-    🔍 <input type="text" id="search" placeholder="Tìm số điện thoại">
+    🔍 <input type="text" id="search" placeholder="Tìm số">
     📅 <input type="date" id="dateFilter">
-    <button onclick="exportExcel()">📊 Export Excel</button>
+    <button onclick="exportExcel()">📊 Export</button>
 </div>
 
 <table>
@@ -65,7 +150,7 @@ tr:nth-child(even){background:#0f172a;}
 <tr>
 <th>STT</th>
 <th>SĐT</th>
-<th>Trạng thái</th>
+<th>Loại</th>
 <th>Talk</th>
 <th>Ring</th>
 <th>Thời gian</th>
@@ -74,11 +159,33 @@ tr:nth-child(even){background:#0f172a;}
 <tbody id="data"></tbody>
 </table>
 
+</div>
+
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 
 <script>
 
+// 🔐 PASSWORD
+const PASSWORD = "123456";
+
+function login(){
+    const p = document.getElementById("pass").value;
+    if(p === PASSWORD){
+        localStorage.setItem("ok","1");
+        document.getElementById("loginBox").style.display="none";
+        document.getElementById("app").style.display="block";
+    }else{
+        document.getElementById("err").innerText="Sai mật khẩu";
+    }
+}
+
+if(localStorage.getItem("ok")==="1"){
+    document.getElementById("loginBox").style.display="none";
+    document.getElementById("app").style.display="block";
+}
+
+// FIREBASE
 const firebaseConfig = {
   databaseURL: "https://call1803-default-rtdb.asia-southeast1.firebasedatabase.app/"
 };
@@ -88,104 +195,107 @@ const db = firebase.database();
 
 let allData = [];
 
-// 🔥 LOAD DATA + FIX DUPLICATE
 db.ref("calls").on("value", snapshot => {
     const data = snapshot.val();
-
     let temp = [];
 
-    for(let date in data){
-        for(let device in data[date]){
-            for(let id in data[date][device]){
-                temp.push(data[date][device][id]);
+    for(let d in data){
+        for(let dev in data[d]){
+            for(let id in data[d][dev]){
+                temp.push(data[d][dev][id]);
             }
         }
     }
 
-    // 🔥 FIX DUPLICATE (theo number + time)
+    // FIX DUPLICATE
     const map = new Map();
-
-    temp.forEach(item => {
-        const key = (item.number || "") + (item.time || "");
-        if(!map.has(key)){
-            map.set(key, item);
-        }
+    temp.forEach(i=>{
+        const key=(i.number||"")+(i.time||"");
+        if(!map.has(key)) map.set(key,i);
     });
 
     allData = Array.from(map.values());
 
-    // 🔥 sort mới nhất lên trên
-    allData.sort((a,b)=>{
-        return new Date(b.time) - new Date(a.time);
-    });
+    allData.sort((a,b)=> new Date(b.time)-new Date(a.time));
 
     render();
+    stats();
 });
 
 function render(){
 
-    const search = document.getElementById("search").value.toLowerCase();
-    const dateFilter = document.getElementById("dateFilter").value;
+    const s = document.getElementById("search").value.toLowerCase();
+    const df = document.getElementById("dateFilter").value;
 
-    let html = "";
-    let stt = 1;
+    let html="";
+    let stt=1;
 
-    allData.forEach(item => {
+    allData.forEach(i=>{
 
-        const talk = item.talkTime ?? item.duration ?? 0;
-        const ring = item.ringTime ?? 0;
+        const talk = i.talkTime ?? i.duration ?? 0;
+        const ring = i.ringTime ?? 0;
 
-        if(search && !(item.number || "").toLowerCase().includes(search)) return;
+        if(s && !(i.number||"").toLowerCase().includes(s)) return;
+        if(df && !i.time.includes(formatDate(df))) return;
 
-        if(dateFilter && !item.time.includes(formatDate(dateFilter))) return;
-
-        html += `
+        html+=`
         <tr>
-            <td>${stt++}</td>
-            <td>${item.number || ""}</td>
-            <td>${item.type || ""}</td>
-            <td>${talk}s</td>
-            <td>${ring}s</td>
-            <td>${item.time || ""}</td>
+        <td>${stt++}</td>
+        <td>${i.number||""}</td>
+        <td>${i.type||""}</td>
+        <td>${talk}s</td>
+        <td>${ring}s</td>
+        <td>${i.time||""}</td>
         </tr>`;
     });
 
-    document.getElementById("data").innerHTML = html;
+    document.getElementById("data").innerHTML=html;
 }
 
-document.getElementById("search").addEventListener("input", render);
-document.getElementById("dateFilter").addEventListener("change", render);
+// 🔥 THỐNG KÊ
+function stats(){
 
-function formatDate(date){
-    const d = new Date(date);
-    const day = String(d.getDate()).padStart(2,'0');
-    const month = String(d.getMonth()+1).padStart(2,'0');
-    const year = d.getFullYear();
-    return `${day}/${month}/${year}`;
-}
+    let total = allData.length;
+    let incoming = 0;
+    let outgoing = 0;
+    let missed = 0;
 
-// 📊 EXPORT EXCEL
-function exportExcel(){
-
-    let csv = "\uFEFF";
-    csv += "STT,SĐT,Trạng thái,Talk,Ring,Thời gian\n";
-
-    let stt = 1;
-
-    allData.forEach(item => {
-
-        const talk = item.talkTime ?? item.duration ?? 0;
-        const ring = item.ringTime ?? 0;
-
-        csv += `${stt++},${item.number || ""},${item.type || ""},${talk},${ring},${item.time || ""}\n`;
+    allData.forEach(i=>{
+        if(i.type==="Gọi đến") incoming++;
+        else if(i.type==="Gọi đi") outgoing++;
+        else if(i.type==="Gọi nhỡ") missed++;
     });
 
-    const blob = new Blob([csv], {type: 'text/csv;charset=utf-8;'});
-    const url = URL.createObjectURL(blob);
+    document.getElementById("total").innerText = total;
+    document.getElementById("in").innerText = incoming;
+    document.getElementById("out").innerText = outgoing;
+    document.getElementById("miss").innerText = missed;
+}
 
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "calls.csv";
+document.getElementById("search").addEventListener("input",render);
+document.getElementById("dateFilter").addEventListener("change",render);
+
+function formatDate(d){
+    const x=new Date(d);
+    return `${String(x.getDate()).padStart(2,'0')}/${String(x.getMonth()+1).padStart(2,'0')}/${x.getFullYear()}`;
+}
+
+// EXPORT
+function exportExcel(){
+    let csv="\uFEFFSTT,SĐT,Loại,Talk,Ring,Thời gian\n";
+    let stt=1;
+
+    allData.forEach(i=>{
+        const talk = i.talkTime ?? i.duration ?? 0;
+        const ring = i.ringTime ?? 0;
+
+        csv+=`${stt++},${i.number||""},${i.type||""},${talk},${ring},${i.time||""}\n`;
+    });
+
+    const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(blob);
+    a.download="calls.csv";
     a.click();
 }
 
