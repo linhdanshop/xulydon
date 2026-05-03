@@ -12,45 +12,27 @@ body{
     padding:20px;
 }
 
-/* LOGIN */
-#loginBox{
-    max-width:300px;
-    margin:100px auto;
-    text-align:center;
+.controls{
+    margin-bottom:15px;
 }
 
-/* INPUT */
-input{
-    padding:10px;
-    width:100%;
-    margin-bottom:10px;
+input, select{
+    padding:8px;
+    margin-right:10px;
     border:1px solid #ccc;
     border-radius:6px;
 }
 
 button{
-    padding:10px;
+    padding:8px 12px;
     border:none;
     border-radius:6px;
     background:#2563eb;
     color:#fff;
-    font-weight:bold;
     cursor:pointer;
 }
 
-/* DASHBOARD */
-#app{display:none;}
-
-.controls{
-    margin-bottom:15px;
-}
-
-.controls input{
-    width:auto;
-    margin-right:10px;
-}
-
-/* STATS BOX */
+/* STATS */
 .stats{
     display:flex;
     gap:15px;
@@ -68,14 +50,13 @@ button{
 
 .card h3{
     margin:0;
-    font-size:18px;
+    font-size:16px;
     color:#666;
 }
 
 .card p{
     font-size:22px;
     font-weight:bold;
-    margin-top:5px;
 }
 
 /* TABLE */
@@ -83,8 +64,6 @@ table{
     width:100%;
     border-collapse:collapse;
     background:#fff;
-    border-radius:10px;
-    overflow:hidden;
 }
 
 th, td{
@@ -106,43 +85,28 @@ tr:hover{
 
 <body>
 
-<!-- LOGIN -->
-<div id="loginBox">
-    <h2>🔐 Đăng nhập</h2>
-    <input type="password" id="pass" placeholder="Nhập mật khẩu">
-    <button onclick="login()">Vào hệ thống</button>
-    <p id="err" style="color:red;"></p>
-</div>
-
-<!-- APP -->
-<div id="app">
-
-<h2>📞 CALL DASHBOARD</h2>
-
-<!-- 🔥 THỐNG KÊ -->
-<div class="stats">
-    <div class="card">
-        <h3>Tổng cuộc gọi</h3>
-        <p id="total">0</p>
-    </div>
-    <div class="card">
-        <h3>Gọi đến</h3>
-        <p id="in">0</p>
-    </div>
-    <div class="card">
-        <h3>Gọi đi</h3>
-        <p id="out">0</p>
-    </div>
-    <div class="card">
-        <h3>Gọi nhỡ</h3>
-        <p id="miss">0</p>
-    </div>
-</div>
+<h2>📞 CUỘC GỌI XỬ LÝ ĐƠN</h2>
 
 <div class="controls">
     🔍 <input type="text" id="search" placeholder="Tìm số">
     📅 <input type="date" id="dateFilter">
+    
+    <select id="typeFilter">
+        <option value="">Tất cả</option>
+        <option value="Gọi đến">Gọi đến</option>
+        <option value="Gọi đi">Gọi đi</option>
+        <option value="Gọi nhỡ">Gọi nhỡ</option>
+    </select>
+
     <button onclick="exportExcel()">📊 Export</button>
+</div>
+
+<!-- 📊 THỐNG KÊ -->
+<div class="stats">
+    <div class="card"><h3>Tổng</h3><p id="total">0</p></div>
+    <div class="card"><h3>Đến</h3><p id="in">0</p></div>
+    <div class="card"><h3>Đi</h3><p id="out">0</p></div>
+    <div class="card"><h3>Nhỡ</h3><p id="miss">0</p></div>
 </div>
 
 <table>
@@ -159,31 +123,14 @@ tr:hover{
 <tbody id="data"></tbody>
 </table>
 
-</div>
-
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 
 <script>
 
-// 🔐 PASSWORD
-const PASSWORD = "123456";
-
-function login(){
-    const p = document.getElementById("pass").value;
-    if(p === PASSWORD){
-        localStorage.setItem("ok","1");
-        document.getElementById("loginBox").style.display="none";
-        document.getElementById("app").style.display="block";
-    }else{
-        document.getElementById("err").innerText="Sai mật khẩu";
-    }
-}
-
-if(localStorage.getItem("ok")==="1"){
-    document.getElementById("loginBox").style.display="none";
-    document.getElementById("app").style.display="block";
-}
+// 🔥 SET NGÀY HÔM NAY
+const today = new Date().toISOString().split("T")[0];
+document.getElementById("dateFilter").value = today;
 
 // FIREBASE
 const firebaseConfig = {
@@ -219,16 +166,18 @@ db.ref("calls").on("value", snapshot => {
     allData.sort((a,b)=> new Date(b.time)-new Date(a.time));
 
     render();
-    stats();
 });
 
 function render(){
 
     const s = document.getElementById("search").value.toLowerCase();
     const df = document.getElementById("dateFilter").value;
+    const tf = document.getElementById("typeFilter").value;
 
     let html="";
     let stt=1;
+
+    let total=0, incoming=0, outgoing=0, missed=0;
 
     allData.forEach(i=>{
 
@@ -237,6 +186,13 @@ function render(){
 
         if(s && !(i.number||"").toLowerCase().includes(s)) return;
         if(df && !i.time.includes(formatDate(df))) return;
+        if(tf && i.type !== tf) return;
+
+        total++;
+
+        if(i.type==="Gọi đến") incoming++;
+        else if(i.type==="Gọi đi") outgoing++;
+        else if(i.type==="Gọi nhỡ") missed++;
 
         html+=`
         <tr>
@@ -250,22 +206,8 @@ function render(){
     });
 
     document.getElementById("data").innerHTML=html;
-}
 
-// 🔥 THỐNG KÊ
-function stats(){
-
-    let total = allData.length;
-    let incoming = 0;
-    let outgoing = 0;
-    let missed = 0;
-
-    allData.forEach(i=>{
-        if(i.type==="Gọi đến") incoming++;
-        else if(i.type==="Gọi đi") outgoing++;
-        else if(i.type==="Gọi nhỡ") missed++;
-    });
-
+    // 🔥 UPDATE STATS THEO FILTER
     document.getElementById("total").innerText = total;
     document.getElementById("in").innerText = incoming;
     document.getElementById("out").innerText = outgoing;
@@ -274,6 +216,7 @@ function stats(){
 
 document.getElementById("search").addEventListener("input",render);
 document.getElementById("dateFilter").addEventListener("change",render);
+document.getElementById("typeFilter").addEventListener("change",render);
 
 function formatDate(d){
     const x=new Date(d);
