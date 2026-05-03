@@ -12,6 +12,7 @@ body{
     padding:20px;
 }
 
+/* ===== CONTROLS ===== */
 .controls{
     margin-bottom:15px;
 }
@@ -23,6 +24,7 @@ input, select{
     border-radius:6px;
 }
 
+/* ===== BUTTON ===== */
 button{
     padding:8px 12px;
     border:none;
@@ -32,7 +34,7 @@ button{
     cursor:pointer;
 }
 
-/* STATS */
+/* ===== STATS ===== */
 .stats{
     display:flex;
     gap:15px;
@@ -43,42 +45,65 @@ button{
     flex:1;
     background:#fff;
     padding:15px;
-    border-radius:10px;
-    box-shadow:0 2px 6px rgba(0,0,0,0.1);
+    border-radius:12px;
+    box-shadow:0 4px 10px rgba(0,0,0,0.08);
     text-align:center;
+    transition:0.2s;
+}
+
+.card:hover{
+    transform:translateY(-3px);
 }
 
 .card h3{
     margin:0;
-    font-size:16px;
-    color:#666;
+    font-size:14px;
+    color:#888;
 }
 
 .card p{
-    font-size:22px;
+    font-size:24px;
     font-weight:bold;
+    margin-top:5px;
 }
 
-/* TABLE */
+/* màu riêng */
+.card.total{border-top:4px solid #2563eb;}
+.card.in{border-top:4px solid #16a34a;}
+.card.out{border-top:4px solid #f59e0b;}
+.card.miss{border-top:4px solid #ef4444;}
+
+/* ===== TABLE ===== */
 table{
     width:100%;
     border-collapse:collapse;
     background:#fff;
+    border-radius:10px;
+    overflow:hidden;
 }
 
 th, td{
     padding:10px;
     text-align:center;
-    border-bottom:1px solid #eee;
 }
 
 th{
     background:#2563eb;
     color:#fff;
+    position:sticky;
+    top:0;
 }
 
-tr:hover{
-    background:#f1f5f9;
+tbody tr{
+    border-bottom:1px solid #eee;
+}
+
+tbody tr:nth-child(even){
+    background:#f9fbff;
+}
+
+tbody tr:hover{
+    background:#eaf2ff;
 }
 </style>
 </head>
@@ -101,12 +126,12 @@ tr:hover{
     <button onclick="exportExcel()">📊 Export</button>
 </div>
 
-<!-- 📊 THỐNG KÊ -->
+<!-- STATS -->
 <div class="stats">
-    <div class="card"><h3>Tổng</h3><p id="total">0</p></div>
-    <div class="card"><h3>Gọi Đến</h3><p id="in">0</p></div>
-    <div class="card"><h3>Gọi Đi</h3><p id="out">0</p></div>
-    <div class="card"><h3>Gọi Nhỡ</h3><p id="miss">0</p></div>
+    <div class="card total"><h3>Tổng</h3><p id="total">0</p></div>
+    <div class="card in"><h3>Gọi đến</h3><p id="in">0</p></div>
+    <div class="card out"><h3>Gọi đi</h3><p id="out">0</p></div>
+    <div class="card miss"><h3>Gọi nhỡ</h3><p id="miss">0</p></div>
 </div>
 
 <table>
@@ -128,9 +153,14 @@ tr:hover{
 
 <script>
 
-// 🔥 SET NGÀY HÔM NAY
-const today = new Date().toISOString().split("T")[0];
-document.getElementById("dateFilter").value = today;
+// 🔥 FIX TIMEZONE VIỆT NAM
+function getTodayVN(){
+    const now = new Date();
+    return new Date(now.getTime() - now.getTimezoneOffset()*60000)
+        .toISOString().split("T")[0];
+}
+
+document.getElementById("dateFilter").value = getTodayVN();
 
 // FIREBASE
 const firebaseConfig = {
@@ -163,10 +193,22 @@ db.ref("calls").on("value", snapshot => {
 
     allData = Array.from(map.values());
 
-    allData.sort((a,b)=> new Date(b.time)-new Date(a.time));
-
     render();
 });
+
+// 🔥 SO SÁNH NGÀY CHUẨN
+function isSameDate(timeStr, inputDate){
+    if(!timeStr) return false;
+
+    const parts = timeStr.split(" ")[1].split("/");
+    const d = new Date(parts[2], parts[1]-1, parts[0]);
+
+    const selected = new Date(inputDate);
+
+    return d.getFullYear() === selected.getFullYear() &&
+           d.getMonth() === selected.getMonth() &&
+           d.getDate() === selected.getDate();
+}
 
 function render(){
 
@@ -185,7 +227,7 @@ function render(){
         const ring = i.ringTime ?? 0;
 
         if(s && !(i.number||"").toLowerCase().includes(s)) return;
-        if(df && !i.time.includes(formatDate(df))) return;
+        if(df && !isSameDate(i.time, df)) return;
         if(tf && i.type !== tf) return;
 
         total++;
@@ -207,21 +249,16 @@ function render(){
 
     document.getElementById("data").innerHTML=html;
 
-    // 🔥 UPDATE STATS THEO FILTER
     document.getElementById("total").innerText = total;
     document.getElementById("in").innerText = incoming;
     document.getElementById("out").innerText = outgoing;
     document.getElementById("miss").innerText = missed;
 }
 
+// EVENT
 document.getElementById("search").addEventListener("input",render);
 document.getElementById("dateFilter").addEventListener("change",render);
 document.getElementById("typeFilter").addEventListener("change",render);
-
-function formatDate(d){
-    const x=new Date(d);
-    return `${String(x.getDate()).padStart(2,'0')}/${String(x.getMonth()+1).padStart(2,'0')}/${x.getFullYear()}`;
-}
 
 // EXPORT
 function exportExcel(){
@@ -241,16 +278,7 @@ function exportExcel(){
     a.download="calls.csv";
     a.click();
 }
-// 🔥 set ngày hôm nay + render ngay
-window.addEventListener("load", () => {
-    const today = new Date().toISOString().split("T")[0];
-    document.getElementById("dateFilter").value = today;
 
-    // đợi firebase load xong rồi render lại
-    setTimeout(() => {
-        render();
-    }, 300);
-});
 </script>
 
 </body>
