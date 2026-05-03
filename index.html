@@ -2,7 +2,7 @@
 <html lang="vi">
 <head>
 <meta charset="UTF-8">
-<title>Call Dashboard</title>
+<title>Call Dashboard PRO</title>
 
 <style>
 body{
@@ -52,7 +52,7 @@ tr:nth-child(even){background:#0f172a;}
 
 <body>
 
-<h2>📞 CALL DASHBOARD</h2>
+<h2>📞 CALL DASHBOARD PRO</h2>
 
 <div class="controls">
     🔍 <input type="text" id="search" placeholder="Tìm số điện thoại">
@@ -88,18 +88,36 @@ const db = firebase.database();
 
 let allData = [];
 
-// 🔥 LOAD REALTIME
+// 🔥 LOAD DATA + FIX DUPLICATE
 db.ref("calls").on("value", snapshot => {
     const data = snapshot.val();
-    allData = [];
+
+    let temp = [];
 
     for(let date in data){
         for(let device in data[date]){
             for(let id in data[date][device]){
-                allData.push(data[date][device][id]);
+                temp.push(data[date][device][id]);
             }
         }
     }
+
+    // 🔥 FIX DUPLICATE (theo number + time)
+    const map = new Map();
+
+    temp.forEach(item => {
+        const key = (item.number || "") + (item.time || "");
+        if(!map.has(key)){
+            map.set(key, item);
+        }
+    });
+
+    allData = Array.from(map.values());
+
+    // 🔥 sort mới nhất lên trên
+    allData.sort((a,b)=>{
+        return new Date(b.time) - new Date(a.time);
+    });
 
     render();
 });
@@ -114,7 +132,6 @@ function render(){
 
     allData.forEach(item => {
 
-        // 🔥 fix undefined + hỗ trợ data cũ
         const talk = item.talkTime ?? item.duration ?? 0;
         const ring = item.ringTime ?? 0;
 
@@ -147,10 +164,10 @@ function formatDate(date){
     return `${day}/${month}/${year}`;
 }
 
-// 📊 EXPORT EXCEL (FIX UTF-8)
+// 📊 EXPORT EXCEL
 function exportExcel(){
 
-    let csv = "\uFEFF"; // 🔥 fix tiếng Việt
+    let csv = "\uFEFF";
     csv += "STT,SĐT,Trạng thái,Talk,Ring,Thời gian\n";
 
     let stt = 1;
