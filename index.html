@@ -241,7 +241,16 @@ function exportExcel(){
     a.download="calls.csv";
     a.click();
 }
+// 🔥 set ngày hôm nay + render ngay
+window.addEventListener("load", () => {
+    const today = new Date().toISOString().split("T")[0];
+    document.getElementById("dateFilter").value = today;
 
+    // đợi firebase load xong rồi render lại
+    setTimeout(() => {
+        render();
+    }, 300);
+});
 </script>
 
 </body>
