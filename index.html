@@ -1,1 +1,177 @@
 
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>Call Dashboard</title>
+
+<style>
+body{
+    font-family: Arial;
+    background:#0f172a;
+    color:#fff;
+    padding:20px;
+}
+
+h2{
+    margin-bottom:10px;
+}
+
+.controls{
+    margin-bottom:15px;
+}
+
+input{
+    padding:8px;
+    margin-right:10px;
+    border-radius:6px;
+    border:none;
+}
+
+button{
+    padding:8px 12px;
+    border:none;
+    border-radius:6px;
+    cursor:pointer;
+    background:#22c55e;
+    color:#000;
+    font-weight:bold;
+}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+    background:#1e293b;
+}
+
+th, td{
+    padding:10px;
+    text-align:center;
+}
+
+th{
+    background:#334155;
+}
+
+tr:nth-child(even){
+    background:#0f172a;
+}
+</style>
+</head>
+
+<body>
+
+<h2>📞 CALL DASHBOARD</h2>
+
+<div class="controls">
+    🔍 <input type="text" id="search" placeholder="Tìm số điện thoại">
+    📅 <input type="date" id="dateFilter">
+    <button onclick="exportExcel()">📊 Export Excel</button>
+</div>
+
+<table>
+<thead>
+<tr>
+<th>STT</th>
+<th>SĐT</th>
+<th>Trạng thái</th>
+<th>Talk</th>
+<th>Ring</th>
+<th>Thời gian</th>
+</tr>
+</thead>
+<tbody id="data"></tbody>
+</table>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+
+<script>
+
+const firebaseConfig = {
+  databaseURL: "https://call1803-default-rtdb.asia-southeast1.firebasedatabase.app/"
+};
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+let allData = [];
+
+db.ref("calls").on("value", snapshot => {
+    const data = snapshot.val();
+    allData = [];
+
+    for(let date in data){
+        for(let device in data[date]){
+            for(let id in data[date][device]){
+                allData.push(data[date][device][id]);
+            }
+        }
+    }
+
+    render();
+});
+
+function render(){
+
+    const search = document.getElementById("search").value.toLowerCase();
+    const dateFilter = document.getElementById("dateFilter").value;
+
+    let html = "";
+    let stt = 1;
+
+    allData.forEach(item => {
+
+        if(search && !item.number.toLowerCase().includes(search)) return;
+
+        if(dateFilter && !item.time.includes(formatDate(dateFilter))) return;
+
+        html += `
+        <tr>
+            <td>${stt++}</td>
+            <td>${item.number}</td>
+            <td>${item.type}</td>
+            <td>${item.talkTime}s</td>
+            <td>${item.ringTime}s</td>
+            <td>${item.time}</td>
+        </tr>`;
+    });
+
+    document.getElementById("data").innerHTML = html;
+}
+
+document.getElementById("search").addEventListener("input", render);
+document.getElementById("dateFilter").addEventListener("change", render);
+
+function formatDate(date){
+    const d = new Date(date);
+    const day = String(d.getDate()).padStart(2,'0');
+    const month = String(d.getMonth()+1).padStart(2,'0');
+    const year = d.getFullYear();
+    return `${day}/${month}/${year}`;
+}
+
+// 📊 EXPORT EXCEL
+function exportExcel(){
+
+    let csv = "STT,SĐT,Trạng thái,Talk,Ring,Thời gian\n";
+
+    let stt = 1;
+
+    allData.forEach(item => {
+        csv += `${stt++},${item.number},${item.type},${item.talkTime},${item.ringTime},${item.time}\n`;
+    });
+
+    const blob = new Blob([csv], {type: 'text/csv'});
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "calls.csv";
+    a.click();
+}
+
+</script>
+
+</body>
+</html>
