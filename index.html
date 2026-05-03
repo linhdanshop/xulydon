@@ -12,7 +12,6 @@ body{
     padding:20px;
 }
 
-/* ===== CONTROLS ===== */
 .controls{
     margin-bottom:15px;
 }
@@ -24,7 +23,6 @@ input, select{
     border-radius:6px;
 }
 
-/* ===== BUTTON ===== */
 button{
     padding:8px 12px;
     border:none;
@@ -48,11 +46,6 @@ button{
     border-radius:12px;
     box-shadow:0 4px 10px rgba(0,0,0,0.08);
     text-align:center;
-    transition:0.2s;
-}
-
-.card:hover{
-    transform:translateY(-3px);
 }
 
 .card h3{
@@ -64,10 +57,8 @@ button{
 .card p{
     font-size:24px;
     font-weight:bold;
-    margin-top:5px;
 }
 
-/* màu riêng */
 .card.total{border-top:4px solid #2563eb;}
 .card.in{border-top:4px solid #16a34a;}
 .card.out{border-top:4px solid #f59e0b;}
@@ -78,8 +69,6 @@ table{
     width:100%;
     border-collapse:collapse;
     background:#fff;
-    border-radius:10px;
-    overflow:hidden;
 }
 
 th, td{
@@ -126,7 +115,6 @@ tbody tr:hover{
     <button onclick="exportExcel()">📊 Export</button>
 </div>
 
-<!-- STATS -->
 <div class="stats">
     <div class="card total"><h3>Tổng</h3><p id="total">0</p></div>
     <div class="card in"><h3>Gọi đến</h3><p id="in">0</p></div>
@@ -153,7 +141,7 @@ tbody tr:hover{
 
 <script>
 
-// 🔥 FIX TIMEZONE VIỆT NAM
+// ===== TIME VN =====
 function getTodayVN(){
     const now = new Date();
     return new Date(now.getTime() - now.getTimezoneOffset()*60000)
@@ -162,7 +150,7 @@ function getTodayVN(){
 
 document.getElementById("dateFilter").value = getTodayVN();
 
-// FIREBASE
+// ===== FIREBASE =====
 const firebaseConfig = {
   databaseURL: "https://call1803-default-rtdb.asia-southeast1.firebasedatabase.app/"
 };
@@ -171,6 +159,7 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
 let allData = [];
+let filteredData = [];
 
 db.ref("calls").on("value", snapshot => {
     const data = snapshot.val();
@@ -184,7 +173,6 @@ db.ref("calls").on("value", snapshot => {
         }
     }
 
-    // FIX DUPLICATE
     const map = new Map();
     temp.forEach(i=>{
         const key=(i.number||"")+(i.time||"");
@@ -196,13 +184,12 @@ db.ref("calls").on("value", snapshot => {
     render();
 });
 
-// 🔥 SO SÁNH NGÀY CHUẨN
+// ===== DATE FILTER =====
 function isSameDate(timeStr, inputDate){
     if(!timeStr) return false;
 
     const parts = timeStr.split(" ")[1].split("/");
     const d = new Date(parts[2], parts[1]-1, parts[0]);
-
     const selected = new Date(inputDate);
 
     return d.getFullYear() === selected.getFullYear() &&
@@ -210,6 +197,7 @@ function isSameDate(timeStr, inputDate){
            d.getDate() === selected.getDate();
 }
 
+// ===== RENDER =====
 function render(){
 
     const s = document.getElementById("search").value.toLowerCase();
@@ -221,6 +209,8 @@ function render(){
 
     let total=0, incoming=0, outgoing=0, missed=0;
 
+    filteredData = [];
+
     allData.forEach(i=>{
 
         const talk = i.talkTime ?? i.duration ?? 0;
@@ -229,6 +219,8 @@ function render(){
         if(s && !(i.number||"").toLowerCase().includes(s)) return;
         if(df && !isSameDate(i.time, df)) return;
         if(tf && i.type !== tf) return;
+
+        filteredData.push(i);
 
         total++;
 
@@ -255,17 +247,17 @@ function render(){
     document.getElementById("miss").innerText = missed;
 }
 
-// EVENT
+// ===== EVENT =====
 document.getElementById("search").addEventListener("input",render);
 document.getElementById("dateFilter").addEventListener("change",render);
 document.getElementById("typeFilter").addEventListener("change",render);
 
-// EXPORT
+// ===== EXPORT =====
 function exportExcel(){
     let csv="\uFEFFSTT,SĐT,Loại,Talk,Ring,Thời gian\n";
     let stt=1;
 
-    allData.forEach(i=>{
+    filteredData.forEach(i=>{
         const talk = i.talkTime ?? i.duration ?? 0;
         const ring = i.ringTime ?? 0;
 
@@ -275,7 +267,10 @@ function exportExcel(){
     const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
     const a=document.createElement("a");
     a.href=URL.createObjectURL(blob);
-    a.download="calls.csv";
+
+    const type = document.getElementById("typeFilter").value || "all";
+    a.download=`calls_${type}.csv`;
+
     a.click();
 }
 
