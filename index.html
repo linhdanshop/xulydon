@@ -107,7 +107,25 @@ tbody tr{ border-bottom:1px solid #eee; }
 tbody tr:nth-child(even){ background:#f9fbff; }
 tbody tr:hover{ background:#eaf2ff; }
 
-tr.missed-handled{ background:#bbf7d0 !important; }
+tr.missed-handled{
+    background:#e0f2fe !important;
+    border-left:5px solid #0284c7;
+}
+
+tr.missed-handled td{
+    color:#075985;
+}
+
+.handled-note{
+    display:inline-block;
+    margin-left:6px;
+    padding:2px 6px;
+    border-radius:999px;
+    background:#0284c7;
+    color:#fff;
+    font-size:11px;
+    font-weight:bold;
+}
 
 .badge{
     display:inline-block;
@@ -324,14 +342,31 @@ function normalizePhone(number){
         .replace(/[^\d+]/g, "");
 }
 
-function buildHandledNumberSet(data){
+function buildHandledNumberSetForCurrentFilter(){
+    const s = document.getElementById("search").value.toLowerCase().trim();
+    const df = document.getElementById("dateFilter").value;
+    const deviceFilter = document.getElementById("deviceFilter").value;
+    const timeFrom = document.getElementById("timeFrom").value;
+    const timeTo = document.getElementById("timeTo").value;
+
     const set = new Set();
 
-    data.forEach(i => {
-        const number = normalizePhone(i.number || "");
+    allData.forEach(i => {
+        const numberRaw = i.number || "";
+        const number = normalizePhone(numberRaw);
+        const device = i.device || i._deviceKey || "Không rõ";
+        const callDate = getDateFromTime(i.time);
+        const callHM = getHourMinute(i.time);
         const talk = Number(i.talkTime ?? i.duration ?? 0);
 
         if(!number) return;
+
+        // giữ các lọc chung, nhưng KHÔNG phụ thuộc lọc Loại
+        if(s && !numberRaw.toLowerCase().includes(s)) return;
+        if(df && callDate !== df) return;
+        if(deviceFilter && device !== deviceFilter) return;
+        if(timeFrom && callHM < timeFrom) return;
+        if(timeTo && callHM > timeTo) return;
 
         if((i.type === "Gọi đến" || i.type === "Gọi đi") && talk > 0){
             set.add(number);
@@ -367,7 +402,7 @@ function render(){
 
     filteredData.sort((a,b) => (b._timestamp || 0) - (a._timestamp || 0));
 
-    const handledSet = buildHandledNumberSet(filteredData);
+    const handledSet = buildHandledNumberSetForCurrentFilter();
 
     let html = "";
     let total = 0, incoming = 0, outgoing = 0, missed = 0;
@@ -396,7 +431,7 @@ function render(){
         }else if(i.type === "Gọi đi"){
             typeBadge = `<span class="badge badge-out">Gọi đi</span>`;
         }else if(i.type === "Gọi nhỡ"){
-            typeBadge = `<span class="badge badge-miss">Gọi nhỡ</span>`;
+            typeBadge = `<span class="badge badge-miss">Gọi nhỡ</span>${isMissedHandled ? '<span class="handled-note">Đã xử lý</span>' : ''}`;
         }else{
             typeBadge = i.type || "";
         }
