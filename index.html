@@ -74,6 +74,8 @@ button:hover{ background:#1d4ed8; }
 .card.out{border-top:4px solid #f59e0b;}
 .card.miss{border-top:4px solid #ef4444;}
 .card.device{border-top:4px solid #7c3aed;}
+.card.handled{border-top:4px solid #0284c7;}
+.card.unhandled{border-top:4px solid #dc2626;}
 
 .table-wrap{
     max-height:75vh;
@@ -116,15 +118,23 @@ tr.missed-handled td{
     color:#075985;
 }
 
-.handled-note{
+.handled-note,
+.unhandled-note{
     display:inline-block;
     margin-left:6px;
     padding:2px 6px;
     border-radius:999px;
-    background:#0284c7;
     color:#fff;
     font-size:11px;
     font-weight:bold;
+}
+
+.handled-note{ background:#0284c7; }
+.unhandled-note{ background:#dc2626; }
+
+tr.missed-unhandled{
+    background:#fff1f2 !important;
+    border-left:5px solid #dc2626;
 }
 
 .badge{
@@ -174,6 +184,13 @@ tr.missed-handled td{
         <option value="Gọi nhỡ">Gọi nhỡ</option>
     </select>
 
+    ✅
+    <select id="statusFilter">
+        <option value="">Tất cả trạng thái</option>
+        <option value="handled">Gọi nhỡ đã xử lý</option>
+        <option value="unhandled">Gọi nhỡ chưa xử lý</option>
+    </select>
+
     <button onclick="resetFilter()">🔄 Reset lọc</button>
     <button onclick="exportExcel()">📊 Export</button>
 </div>
@@ -183,6 +200,8 @@ tr.missed-handled td{
     <div class="card in"><h3>Gọi đến</h3><p id="in">0</p></div>
     <div class="card out"><h3>Gọi đi</h3><p id="out">0</p></div>
     <div class="card miss"><h3>Gọi nhỡ</h3><p id="miss">0</p></div>
+    <div class="card handled"><h3>Nhỡ đã xử lý</h3><p id="missHandled">0</p></div>
+    <div class="card unhandled"><h3>Nhỡ chưa xử lý</h3><p id="missUnhandled">0</p></div>
     <div class="card device"><h3>Số máy</h3><p id="deviceCount">0</p></div>
 </div>
 
@@ -194,6 +213,7 @@ tr.missed-handled td{
     <th>Máy</th>
     <th>SĐT</th>
     <th>Loại</th>
+    <th>Trạng thái</th>
     <th>Talk</th>
     <th>Ring</th>
     <th>Thời gian</th>
@@ -380,6 +400,7 @@ function render(){
     const s = document.getElementById("search").value.toLowerCase().trim();
     const df = document.getElementById("dateFilter").value;
     const tf = document.getElementById("typeFilter").value;
+    const statusFilter = document.getElementById("statusFilter").value;
     const deviceFilter = document.getElementById("deviceFilter").value;
     const timeFrom = document.getElementById("timeFrom").value;
     const timeTo = document.getElementById("timeTo").value;
@@ -404,8 +425,23 @@ function render(){
 
     const handledSet = buildHandledNumberSetForCurrentFilter();
 
+    if(statusFilter){
+        filteredData = filteredData.filter(i => {
+            if(i.type !== "Gọi nhỡ") return false;
+
+            const normalized = normalizePhone(i.number || "");
+            const isHandled = handledSet.has(normalized);
+
+            if(statusFilter === "handled") return isHandled;
+            if(statusFilter === "unhandled") return !isHandled;
+
+            return true;
+        });
+    }
+
     let html = "";
     let total = 0, incoming = 0, outgoing = 0, missed = 0;
+    let missHandled = 0, missUnhandled = 0;
     let stt = 1;
     const visibleDevices = new Set();
 
@@ -424,6 +460,10 @@ function render(){
 
         const normalized = normalizePhone(number);
         const isMissedHandled = i.type === "Gọi nhỡ" && handledSet.has(normalized);
+        const isMissedUnhandled = i.type === "Gọi nhỡ" && !isMissedHandled;
+
+        if(isMissedHandled) missHandled++;
+        if(isMissedUnhandled) missUnhandled++;
 
         let typeBadge = "";
         if(i.type === "Gọi đến"){
@@ -431,17 +471,27 @@ function render(){
         }else if(i.type === "Gọi đi"){
             typeBadge = `<span class="badge badge-out">Gọi đi</span>`;
         }else if(i.type === "Gọi nhỡ"){
-            typeBadge = `<span class="badge badge-miss">Gọi nhỡ</span>${isMissedHandled ? '<span class="handled-note">Đã xử lý</span>' : ''}`;
+            typeBadge = `<span class="badge badge-miss">Gọi nhỡ</span>`;
         }else{
             typeBadge = i.type || "";
         }
 
+        let statusText = "";
+        if(isMissedHandled){
+            statusText = '<span class="handled-note">Đã xử lý</span>';
+        }else if(isMissedUnhandled){
+            statusText = '<span class="unhandled-note">Chưa xử lý</span>';
+        }
+
+        const rowClass = isMissedHandled ? "missed-handled" : (isMissedUnhandled ? "missed-unhandled" : "");
+
         html += `
-        <tr class="${isMissedHandled ? "missed-handled" : ""}">
+        <tr class="${rowClass}">
             <td>${stt++}</td>
             <td><span class="device-badge">${device}</span></td>
             <td>${number}</td>
             <td>${typeBadge}</td>
+            <td>${statusText}</td>
             <td>${talk}s</td>
             <td>${ring}s</td>
             <td>${i.time || ""}</td>
@@ -453,6 +503,8 @@ function render(){
     document.getElementById("in").innerText = incoming;
     document.getElementById("out").innerText = outgoing;
     document.getElementById("miss").innerText = missed;
+    document.getElementById("missHandled").innerText = missHandled;
+    document.getElementById("missUnhandled").innerText = missUnhandled;
     document.getElementById("deviceCount").innerText = visibleDevices.size;
 }
 
@@ -463,6 +515,7 @@ function resetFilter(){
     document.getElementById("timeTo").value = "";
     document.getElementById("deviceFilter").value = "";
     document.getElementById("typeFilter").value = "";
+    document.getElementById("statusFilter").value = "";
     render();
 }
 
@@ -472,21 +525,31 @@ document.getElementById("timeFrom").addEventListener("change", render);
 document.getElementById("timeTo").addEventListener("change", render);
 document.getElementById("deviceFilter").addEventListener("change", render);
 document.getElementById("typeFilter").addEventListener("change", render);
+document.getElementById("statusFilter").addEventListener("change", render);
 
 function exportExcel(){
-    let csv = "\uFEFFSTT,Máy,SĐT,Loại,Talk,Ring,Thời gian\n";
+    let csv = "\uFEFFSTT,Máy,SĐT,Loại,Trạng thái,Talk,Ring,Thời gian\n";
     let stt = 1;
+
+    const handledSet = buildHandledNumberSetForCurrentFilter();
 
     filteredData.forEach(i => {
         const device = i.device || i._deviceKey || "Không rõ";
         const talk = Number(i.talkTime ?? i.duration ?? 0);
         const ring = Number(i.ringTime ?? 0);
 
+        let status = "";
+        if(i.type === "Gọi nhỡ"){
+            const isHandled = handledSet.has(normalizePhone(i.number || ""));
+            status = isHandled ? "Đã xử lý" : "Chưa xử lý";
+        }
+
         csv += [
             stt++,
             `"${device}"`,
             `"${i.number || ""}"`,
             `"${i.type || ""}"`,
+            `"${status}"`,
             talk,
             ring,
             `"${i.time || ""}"`
@@ -500,8 +563,9 @@ function exportExcel(){
     const date = document.getElementById("dateFilter").value || "all-date";
     const device = document.getElementById("deviceFilter").value || "all-device";
     const type = document.getElementById("typeFilter").value || "all-type";
+    const status = document.getElementById("statusFilter").value || "all-status";
 
-    a.download = `calls_${date}_${device}_${type}.csv`;
+    a.download = `calls_${date}_${device}_${type}_${status}.csv`;
     a.click();
 }
 </script>
