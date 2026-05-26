@@ -55,6 +55,13 @@ button:hover{ background:#1d4ed8; }
     border-radius:12px;
     box-shadow:0 4px 10px rgba(0,0,0,0.08);
     text-align:center;
+    cursor:pointer;
+    transition:0.15s;
+}
+
+.card:hover{
+    transform:translateY(-2px);
+    box-shadow:0 6px 14px rgba(0,0,0,0.13);
 }
 
 .card h3{
@@ -196,13 +203,13 @@ tr.missed-unhandled{
 </div>
 
 <div class="stats">
-    <div class="card total"><h3>Tổng</h3><p id="total">0</p></div>
-    <div class="card in"><h3>Gọi đến</h3><p id="in">0</p></div>
-    <div class="card out"><h3>Gọi đi</h3><p id="out">0</p></div>
-    <div class="card miss"><h3>Gọi nhỡ</h3><p id="miss">0</p></div>
-    <div class="card handled"><h3>Nhỡ đã xử lý</h3><p id="missHandled">0</p></div>
-    <div class="card unhandled"><h3>Nhỡ chưa xử lý</h3><p id="missUnhandled">0</p></div>
-    <div class="card device"><h3>Số máy</h3><p id="deviceCount">0</p></div>
+    <div class="card total" onclick="quickFilter('all')"><h3>Tổng</h3><p id="total">0</p></div>
+    <div class="card in" onclick="quickFilter('in')"><h3>Gọi đến</h3><p id="in">0</p></div>
+    <div class="card out" onclick="quickFilter('out')"><h3>Gọi đi</h3><p id="out">0</p></div>
+    <div class="card miss" onclick="quickFilter('miss')"><h3>Gọi nhỡ</h3><p id="miss">0</p></div>
+    <div class="card handled" onclick="quickFilter('handled')"><h3>Nhỡ đã xử lý</h3><p id="missHandled">0</p></div>
+    <div class="card unhandled" onclick="quickFilter('unhandled')"><h3>Nhỡ chưa xử lý</h3><p id="missUnhandled">0</p></div>
+    <div class="card device" onclick="focusDeviceFilter()"><h3>Số máy</h3><p id="deviceCount">0</p></div>
 </div>
 
 <div class="table-wrap">
@@ -506,6 +513,59 @@ function render(){
     document.getElementById("missHandled").innerText = missHandled;
     document.getElementById("missUnhandled").innerText = missUnhandled;
     document.getElementById("deviceCount").innerText = visibleDevices.size;
+}
+
+
+function quickFilter(kind){
+    const typeFilter = document.getElementById("typeFilter");
+    const statusFilter = document.getElementById("statusFilter");
+
+    if(kind === "all"){
+        typeFilter.value = "";
+        statusFilter.value = "";
+    }
+
+    if(kind === "in"){
+        typeFilter.value = "Gọi đến";
+        statusFilter.value = "";
+    }
+
+    if(kind === "out"){
+        typeFilter.value = "Gọi đi";
+        statusFilter.value = "";
+    }
+
+    if(kind === "miss"){
+        typeFilter.value = "Gọi nhỡ";
+        statusFilter.value = "";
+    }
+
+    if(kind === "handled"){
+        typeFilter.value = "Gọi nhỡ";
+        statusFilter.value = "handled";
+    }
+
+    if(kind === "unhandled"){
+        typeFilter.value = "Gọi nhỡ";
+        statusFilter.value = "unhandled";
+    }
+
+    render();
+
+    document.querySelector(".table-wrap").scrollIntoView({
+        behavior:"smooth",
+        block:"start"
+    });
+}
+
+function focusDeviceFilter(){
+    const deviceFilter = document.getElementById("deviceFilter");
+    deviceFilter.focus();
+
+    document.querySelector(".controls").scrollIntoView({
+        behavior:"smooth",
+        block:"start"
+    });
 }
 
 function resetFilter(){
