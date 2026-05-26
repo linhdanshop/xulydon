@@ -14,6 +14,33 @@ body{
 
 h2{ margin-top:0; }
 
+.time-summary{
+    display:flex;
+    flex-wrap:wrap;
+    gap:12px;
+    align-items:center;
+    margin:8px 0 18px;
+    padding:12px 14px;
+    background:#fff;
+    border-radius:12px;
+    box-shadow:0 4px 10px rgba(0,0,0,0.06);
+    border-left:5px solid #2563eb;
+    font-size:15px;
+    font-weight:bold;
+}
+
+.time-summary span{
+    display:inline-block;
+}
+
+.time-summary .label{
+    color:#555;
+}
+
+.time-summary .value{
+    color:#111;
+}
+
 .controls{
     margin-bottom:15px;
     display:flex;
@@ -172,6 +199,17 @@ tr.missed-unhandled{
 <body>
 
 <h2>📞 THỐNG KÊ CUỘC GỌI</h2>
+
+<div class="time-summary">
+    <span class="label">Tổng nghe máy:</span>
+    <span class="value" id="totalTalkTime">0 giây</span>
+    <span>|</span>
+    <span class="label">Tổng đổ chuông:</span>
+    <span class="value" id="totalRingTime">0 giây</span>
+    <span>|</span>
+    <span class="label">Tổng thời lượng:</span>
+    <span class="value" id="totalCallTime">0 giây</span>
+</div>
 
 <div class="controls">
     🔍 <input type="text" id="search" placeholder="Tìm số điện thoại">
@@ -405,6 +443,22 @@ function buildHandledNumberSetForCurrentFilter(){
     return set;
 }
 
+function formatDuration(totalSeconds){
+    totalSeconds = Number(totalSeconds || 0);
+
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+
+    let parts = [];
+
+    if(hours > 0) parts.push(hours + " giờ");
+    if(minutes > 0) parts.push(minutes + " phút");
+    if(seconds > 0 || parts.length === 0) parts.push(seconds + " giây");
+
+    return parts.join(" ");
+}
+
 function render(){
     const s = document.getElementById("search").value.toLowerCase().trim();
     const df = document.getElementById("dateFilter").value;
@@ -455,6 +509,9 @@ function render(){
     const visibleDevices = new Set();
     const uniqueNumbers = new Set();
 
+    let totalTalkSeconds = 0;
+    let totalRingSeconds = 0;
+
     filteredData.forEach(i => {
         const device = i.device || i._deviceKey || "Không rõ";
         const talk = Number(i.talkTime ?? i.duration ?? 0);
@@ -463,6 +520,10 @@ function render(){
 
         visibleDevices.add(device);
         if(normalizePhone(number)) uniqueNumbers.add(normalizePhone(number));
+
+        totalTalkSeconds += talk;
+        totalRingSeconds += ring;
+
         total++;
 
         if(i.type === "Gọi đến") incoming++;
@@ -518,6 +579,10 @@ function render(){
     document.getElementById("missUnhandled").innerText = missUnhandled;
     document.getElementById("uniqueCount").innerText = uniqueNumbers.size;
     document.getElementById("deviceCount").innerText = visibleDevices.size;
+
+    document.getElementById("totalTalkTime").innerText = formatDuration(totalTalkSeconds);
+    document.getElementById("totalRingTime").innerText = formatDuration(totalRingSeconds);
+    document.getElementById("totalCallTime").innerText = formatDuration(totalTalkSeconds + totalRingSeconds);
 }
 
 
