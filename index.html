@@ -6,21 +6,27 @@
 
 <style>
 body{
-    font-family: Arial;
+    font-family: Arial, sans-serif;
     background:#f5f7fb;
     color:#111;
     padding:20px;
 }
 
+h2{ margin-top:0; }
+
 .controls{
     margin-bottom:15px;
+    display:flex;
+    flex-wrap:wrap;
+    gap:10px;
+    align-items:center;
 }
 
 input, select{
     padding:8px;
-    margin-right:10px;
     border:1px solid #ccc;
     border-radius:6px;
+    background:#fff;
 }
 
 button{
@@ -32,15 +38,18 @@ button{
     cursor:pointer;
 }
 
-/* ===== STATS ===== */
+button:hover{ background:#1d4ed8; }
+
 .stats{
     display:flex;
     gap:15px;
     margin-bottom:20px;
+    flex-wrap:wrap;
 }
 
 .card{
     flex:1;
+    min-width:130px;
     background:#fff;
     padding:15px;
     border-radius:12px;
@@ -57,14 +66,23 @@ button{
 .card p{
     font-size:24px;
     font-weight:bold;
+    margin:10px 0 0;
 }
 
 .card.total{border-top:4px solid #2563eb;}
 .card.in{border-top:4px solid #16a34a;}
 .card.out{border-top:4px solid #f59e0b;}
 .card.miss{border-top:4px solid #ef4444;}
+.card.device{border-top:4px solid #7c3aed;}
 
-/* ===== TABLE ===== */
+.table-wrap{
+    max-height:75vh;
+    overflow:auto;
+    background:#fff;
+    border-radius:10px;
+    box-shadow:0 4px 10px rgba(0,0,0,0.06);
+}
+
 table{
     width:100%;
     border-collapse:collapse;
@@ -74,6 +92,7 @@ table{
 th, td{
     padding:10px;
     text-align:center;
+    white-space:nowrap;
 }
 
 th{
@@ -81,37 +100,63 @@ th{
     color:#fff;
     position:sticky;
     top:0;
+    z-index:2;
 }
 
-tbody tr{
-    border-bottom:1px solid #eee;
+tbody tr{ border-bottom:1px solid #eee; }
+tbody tr:nth-child(even){ background:#f9fbff; }
+tbody tr:hover{ background:#eaf2ff; }
+
+tr.missed-handled{ background:#bbf7d0 !important; }
+
+.badge{
+    display:inline-block;
+    padding:4px 8px;
+    border-radius:999px;
+    font-size:12px;
+    font-weight:bold;
 }
 
-tbody tr:nth-child(even){
-    background:#f9fbff;
-}
+.badge-in{ background:#dcfce7; color:#166534; }
+.badge-out{ background:#fef3c7; color:#92400e; }
+.badge-miss{ background:#fee2e2; color:#991b1b; }
 
-tbody tr:hover{
-    background:#eaf2ff;
+.device-badge{
+    display:inline-block;
+    padding:4px 8px;
+    border-radius:6px;
+    background:#ede9fe;
+    color:#5b21b6;
+    font-weight:bold;
+    font-size:12px;
 }
 </style>
 </head>
 
 <body>
 
-<h2>📞 CUỘC GỌI XỬ LÝ ĐƠN</h2>
+<h2>📞 THỐNG KÊ CUỘC GỌI</h2>
 
 <div class="controls">
-    🔍 <input type="text" id="search" placeholder="Tìm số">
+    🔍 <input type="text" id="search" placeholder="Tìm số điện thoại">
     📅 <input type="date" id="dateFilter">
-    
+    ⏱️ Từ <input type="time" id="timeFrom">
+    ⏱️ Đến <input type="time" id="timeTo">
+
+    📱
+    <select id="deviceFilter">
+        <option value="">Tất cả máy</option>
+    </select>
+
+    📞
     <select id="typeFilter">
-        <option value="">Tất cả</option>
+        <option value="">Tất cả cuộc gọi</option>
         <option value="Gọi đến">Gọi đến</option>
         <option value="Gọi đi">Gọi đi</option>
         <option value="Gọi nhỡ">Gọi nhỡ</option>
     </select>
 
+    <button onclick="resetFilter()">🔄 Reset lọc</button>
     <button onclick="exportExcel()">📊 Export</button>
 </div>
 
@@ -120,39 +165,41 @@ tbody tr:hover{
     <div class="card in"><h3>Gọi đến</h3><p id="in">0</p></div>
     <div class="card out"><h3>Gọi đi</h3><p id="out">0</p></div>
     <div class="card miss"><h3>Gọi nhỡ</h3><p id="miss">0</p></div>
+    <div class="card device"><h3>Số máy</h3><p id="deviceCount">0</p></div>
 </div>
 
+<div class="table-wrap">
 <table>
 <thead>
 <tr>
-<th>STT</th>
-<th>SĐT</th>
-<th>Loại</th>
-<th>Talk</th>
-<th>Ring</th>
-<th>Thời gian</th>
+    <th>STT</th>
+    <th>Máy</th>
+    <th>SĐT</th>
+    <th>Loại</th>
+    <th>Talk</th>
+    <th>Ring</th>
+    <th>Thời gian</th>
 </tr>
 </thead>
 <tbody id="data"></tbody>
 </table>
+</div>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 
 <script>
-
-// ===== TIME VN =====
 function getTodayVN(){
     const now = new Date();
     return new Date(now.getTime() - now.getTimezoneOffset()*60000)
-        .toISOString().split("T")[0];
+        .toISOString()
+        .split("T")[0];
 }
 
 document.getElementById("dateFilter").value = getTodayVN();
 
-// ===== FIREBASE =====
 const firebaseConfig = {
-  databaseURL: "https://call1803-default-rtdb.asia-southeast1.firebasedatabase.app/"
+    databaseURL: "https://call1803-default-rtdb.asia-southeast1.firebasedatabase.app/"
 };
 
 firebase.initializeApp(firebaseConfig);
@@ -165,115 +212,263 @@ db.ref("calls").on("value", snapshot => {
     const data = snapshot.val();
     let temp = [];
 
-    for(let d in data){
-        for(let dev in data[d]){
-            for(let id in data[d][dev]){
-                temp.push(data[d][dev][id]);
+    if(data){
+        for(let dateKey in data){
+            for(let deviceKey in data[dateKey]){
+                for(let id in data[dateKey][deviceKey]){
+                    const item = data[dateKey][deviceKey][id] || {};
+
+                    item._id = id;
+                    item._dateKey = dateKey;
+                    item._deviceKey = deviceKey;
+                    item.device = item.device || deviceKey;
+                    item._timestamp = parseTimeToTimestamp(item.time, dateKey);
+
+                    temp.push(item);
+                }
             }
         }
     }
 
     const map = new Map();
-    temp.forEach(i=>{
-        const key=(i.number||"")+(i.time||"");
-        if(!map.has(key)) map.set(key,i);
+
+    temp.forEach(i => {
+        const key = [
+            i._dateKey || "",
+            i.device || "",
+            i.number || "",
+            i.type || "",
+            i.time || "",
+            i.talkTime ?? "",
+            i.ringTime ?? ""
+        ].join("|");
+
+        if(!map.has(key)) map.set(key, i);
     });
 
     allData = Array.from(map.values());
+    allData.sort((a,b) => (b._timestamp || 0) - (a._timestamp || 0));
 
+    updateDeviceFilter();
     render();
 });
 
-// ===== DATE FILTER =====
-function isSameDate(timeStr, inputDate){
-    if(!timeStr) return false;
+function parseTimeToTimestamp(timeStr, dateKey){
+    if(!timeStr) return dateKey ? new Date(dateKey).getTime() : 0;
 
-    const parts = timeStr.split(" ")[1].split("/");
-    const d = new Date(parts[2], parts[1]-1, parts[0]);
-    const selected = new Date(inputDate);
+    const parts = timeStr.split(" ");
 
-    return d.getFullYear() === selected.getFullYear() &&
-           d.getMonth() === selected.getMonth() &&
-           d.getDate() === selected.getDate();
+    if(parts.length >= 2){
+        const hms = parts[0].split(":");
+        const dmy = parts[1].split("/");
+
+        if(hms.length >= 2 && dmy.length === 3){
+            const h = Number(hms[0] || 0);
+            const m = Number(hms[1] || 0);
+            const s = Number(hms[2] || 0);
+            const d = Number(dmy[0]);
+            const mo = Number(dmy[1]) - 1;
+            const y = Number(dmy[2]);
+
+            return new Date(y, mo, d, h, m, s).getTime();
+        }
+    }
+
+    return 0;
 }
 
-// ===== RENDER =====
-function render(){
+function getDateFromTime(timeStr){
+    if(!timeStr) return "";
 
-    const s = document.getElementById("search").value.toLowerCase();
+    const parts = timeStr.split(" ");
+    if(parts.length < 2) return "";
+
+    const dmy = parts[1].split("/");
+    if(dmy.length !== 3) return "";
+
+    const d = dmy[0].padStart(2, "0");
+    const m = dmy[1].padStart(2, "0");
+    const y = dmy[2];
+
+    return `${y}-${m}-${d}`;
+}
+
+function getHourMinute(timeStr){
+    if(!timeStr) return "";
+    return timeStr.split(" ")[0].slice(0,5);
+}
+
+function updateDeviceFilter(){
+    const select = document.getElementById("deviceFilter");
+    const current = select.value;
+
+    const devices = [...new Set(allData.map(i => i.device || i._deviceKey || "Không rõ"))]
+        .filter(Boolean)
+        .sort();
+
+    select.innerHTML = `<option value="">Tất cả máy</option>`;
+
+    devices.forEach(dev => {
+        const opt = document.createElement("option");
+        opt.value = dev;
+        opt.textContent = dev;
+        select.appendChild(opt);
+    });
+
+    if(devices.includes(current)) select.value = current;
+}
+
+function normalizePhone(number){
+    return String(number || "")
+        .replace(/\s+/g, "")
+        .replace(/[^\d+]/g, "");
+}
+
+function buildHandledNumberSet(data){
+    const set = new Set();
+
+    data.forEach(i => {
+        const number = normalizePhone(i.number || "");
+        const talk = Number(i.talkTime ?? i.duration ?? 0);
+
+        if(!number) return;
+
+        if((i.type === "Gọi đến" || i.type === "Gọi đi") && talk > 0){
+            set.add(number);
+        }
+    });
+
+    return set;
+}
+
+function render(){
+    const s = document.getElementById("search").value.toLowerCase().trim();
     const df = document.getElementById("dateFilter").value;
     const tf = document.getElementById("typeFilter").value;
+    const deviceFilter = document.getElementById("deviceFilter").value;
+    const timeFrom = document.getElementById("timeFrom").value;
+    const timeTo = document.getElementById("timeTo").value;
 
-    let html="";
-    let stt=1;
+    filteredData = allData.filter(i => {
+        const number = (i.number || "").toLowerCase();
+        const device = i.device || i._deviceKey || "Không rõ";
+        const callDate = getDateFromTime(i.time);
+        const callHM = getHourMinute(i.time);
 
-    let total=0, incoming=0, outgoing=0, missed=0;
+        if(s && !number.includes(s)) return false;
+        if(df && callDate !== df) return false;
+        if(tf && i.type !== tf) return false;
+        if(deviceFilter && device !== deviceFilter) return false;
+        if(timeFrom && callHM < timeFrom) return false;
+        if(timeTo && callHM > timeTo) return false;
 
-    filteredData = [];
+        return true;
+    });
 
-    allData.forEach(i=>{
+    filteredData.sort((a,b) => (b._timestamp || 0) - (a._timestamp || 0));
 
-        const talk = i.talkTime ?? i.duration ?? 0;
-        const ring = i.ringTime ?? 0;
+    const handledSet = buildHandledNumberSet(filteredData);
 
-        if(s && !(i.number||"").toLowerCase().includes(s)) return;
-        if(df && !isSameDate(i.time, df)) return;
-        if(tf && i.type !== tf) return;
+    let html = "";
+    let total = 0, incoming = 0, outgoing = 0, missed = 0;
+    let stt = 1;
+    const visibleDevices = new Set();
 
-        filteredData.push(i);
+    filteredData.forEach(i => {
+        const device = i.device || i._deviceKey || "Không rõ";
+        const talk = Number(i.talkTime ?? i.duration ?? 0);
+        const ring = Number(i.ringTime ?? 0);
+        const number = i.number || "";
 
+        visibleDevices.add(device);
         total++;
 
-        if(i.type==="Gọi đến") incoming++;
-        else if(i.type==="Gọi đi") outgoing++;
-        else if(i.type==="Gọi nhỡ") missed++;
+        if(i.type === "Gọi đến") incoming++;
+        else if(i.type === "Gọi đi") outgoing++;
+        else if(i.type === "Gọi nhỡ") missed++;
 
-        html+=`
-        <tr>
-        <td>${stt++}</td>
-        <td>${i.number||""}</td>
-        <td>${i.type||""}</td>
-        <td>${talk}s</td>
-        <td>${ring}s</td>
-        <td>${i.time||""}</td>
+        const normalized = normalizePhone(number);
+        const isMissedHandled = i.type === "Gọi nhỡ" && handledSet.has(normalized);
+
+        let typeBadge = "";
+        if(i.type === "Gọi đến"){
+            typeBadge = `<span class="badge badge-in">Gọi đến</span>`;
+        }else if(i.type === "Gọi đi"){
+            typeBadge = `<span class="badge badge-out">Gọi đi</span>`;
+        }else if(i.type === "Gọi nhỡ"){
+            typeBadge = `<span class="badge badge-miss">Gọi nhỡ</span>`;
+        }else{
+            typeBadge = i.type || "";
+        }
+
+        html += `
+        <tr class="${isMissedHandled ? "missed-handled" : ""}">
+            <td>${stt++}</td>
+            <td><span class="device-badge">${device}</span></td>
+            <td>${number}</td>
+            <td>${typeBadge}</td>
+            <td>${talk}s</td>
+            <td>${ring}s</td>
+            <td>${i.time || ""}</td>
         </tr>`;
     });
 
-    document.getElementById("data").innerHTML=html;
-
+    document.getElementById("data").innerHTML = html;
     document.getElementById("total").innerText = total;
     document.getElementById("in").innerText = incoming;
     document.getElementById("out").innerText = outgoing;
     document.getElementById("miss").innerText = missed;
+    document.getElementById("deviceCount").innerText = visibleDevices.size;
 }
 
-// ===== EVENT =====
-document.getElementById("search").addEventListener("input",render);
-document.getElementById("dateFilter").addEventListener("change",render);
-document.getElementById("typeFilter").addEventListener("change",render);
+function resetFilter(){
+    document.getElementById("search").value = "";
+    document.getElementById("dateFilter").value = getTodayVN();
+    document.getElementById("timeFrom").value = "";
+    document.getElementById("timeTo").value = "";
+    document.getElementById("deviceFilter").value = "";
+    document.getElementById("typeFilter").value = "";
+    render();
+}
 
-// ===== EXPORT =====
+document.getElementById("search").addEventListener("input", render);
+document.getElementById("dateFilter").addEventListener("change", render);
+document.getElementById("timeFrom").addEventListener("change", render);
+document.getElementById("timeTo").addEventListener("change", render);
+document.getElementById("deviceFilter").addEventListener("change", render);
+document.getElementById("typeFilter").addEventListener("change", render);
+
 function exportExcel(){
-    let csv="\uFEFFSTT,SĐT,Loại,Talk,Ring,Thời gian\n";
-    let stt=1;
+    let csv = "\uFEFFSTT,Máy,SĐT,Loại,Talk,Ring,Thời gian\n";
+    let stt = 1;
 
-    filteredData.forEach(i=>{
-        const talk = i.talkTime ?? i.duration ?? 0;
-        const ring = i.ringTime ?? 0;
+    filteredData.forEach(i => {
+        const device = i.device || i._deviceKey || "Không rõ";
+        const talk = Number(i.talkTime ?? i.duration ?? 0);
+        const ring = Number(i.ringTime ?? 0);
 
-        csv+=`${stt++},${i.number||""},${i.type||""},${talk},${ring},${i.time||""}\n`;
+        csv += [
+            stt++,
+            `"${device}"`,
+            `"${i.number || ""}"`,
+            `"${i.type || ""}"`,
+            talk,
+            ring,
+            `"${i.time || ""}"`
+        ].join(",") + "\n";
     });
 
-    const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
-    const a=document.createElement("a");
-    a.href=URL.createObjectURL(blob);
+    const blob = new Blob([csv], {type:"text/csv;charset=utf-8;"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
 
-    const type = document.getElementById("typeFilter").value || "all";
-    a.download=`calls_${type}.csv`;
+    const date = document.getElementById("dateFilter").value || "all-date";
+    const device = document.getElementById("deviceFilter").value || "all-device";
+    const type = document.getElementById("typeFilter").value || "all-type";
 
+    a.download = `calls_${date}_${device}_${type}.csv`;
     a.click();
 }
-
 </script>
 
 </body>
