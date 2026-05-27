@@ -111,6 +111,7 @@ button:hover{ background:#1d4ed8; }
 .card.unique{border-top:4px solid #0f766e;}
 .card.handled{border-top:4px solid #0284c7;}
 .card.unhandled{border-top:4px solid #dc2626;}
+.card.answer{border-top:4px solid #14b8a6;}
 
 .table-wrap{
     max-height:75vh;
@@ -244,6 +245,7 @@ tr.missed-unhandled{
 <div class="stats">
     <div class="card total" onclick="quickFilter('all')"><h3>Tổng</h3><p id="total">0</p></div>
     <div class="card in" onclick="quickFilter('in')"><h3>Gọi đến</h3><p id="in">0</p></div>
+    <div class="card answer" onclick="quickFilter('answered')"><h3>Nghe máy</h3><p id="answeredCount">0</p></div>
     <div class="card out" onclick="quickFilter('out')"><h3>Gọi đi</h3><p id="out">0</p></div>
     <div class="card miss" onclick="quickFilter('miss')"><h3>Gọi nhỡ</h3><p id="miss">0</p></div>
     <div class="card handled" onclick="quickFilter('handled')"><h3>Nhỡ đã xử lý</h3><p id="missHandled">0</p></div>
@@ -504,6 +506,7 @@ function render(){
 
     let html = "";
     let total = 0, incoming = 0, outgoing = 0, missed = 0;
+    let answeredCount = 0;
     let missHandled = 0, missUnhandled = 0;
     let stt = 1;
     const visibleDevices = new Set();
@@ -529,6 +532,10 @@ function render(){
         if(i.type === "Gọi đến") incoming++;
         else if(i.type === "Gọi đi") outgoing++;
         else if(i.type === "Gọi nhỡ") missed++;
+
+        if(talk > 0){
+            answeredCount++;
+        }
 
         const normalized = normalizePhone(number);
         const isMissedHandled = i.type === "Gọi nhỡ" && handledSet.has(normalized);
@@ -573,6 +580,7 @@ function render(){
     document.getElementById("data").innerHTML = html;
     document.getElementById("total").innerText = total;
     document.getElementById("in").innerText = incoming;
+    document.getElementById("answeredCount").innerText = answeredCount;
     document.getElementById("out").innerText = outgoing;
     document.getElementById("miss").innerText = missed;
     document.getElementById("missHandled").innerText = missHandled;
