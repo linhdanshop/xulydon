@@ -75,8 +75,9 @@ button:hover{ background:#1d4ed8; }
 }
 
 .card{
-    flex:1;
-    min-width:130px;
+    flex:1 1 180px;
+    min-width:180px;
+    max-width:220px;
     background:#fff;
     padding:15px;
     border-radius:12px;
@@ -95,6 +96,7 @@ button:hover{ background:#1d4ed8; }
     margin:0;
     font-size:14px;
     color:#888;
+    white-space:nowrap;
 }
 
 .card p{
@@ -244,13 +246,13 @@ tr.missed-unhandled{
 
 <div class="stats">
     <div class="card total" onclick="quickFilter('all')"><h3>Tổng</h3><p id="total">0</p></div>
-    <div class="card in" onclick="quickFilter('in')"><h3>Gọi đến</h3><p id="in">0</p></div>
+    <div class="card unique" onclick="quickFilter('all')"><h3>Đơn xử lý</h3><p id="uniqueCount">0</p></div>
     <div class="card answer" onclick="quickFilter('answered')"><h3>Nghe máy</h3><p id="answeredCount">0</p></div>
+    <div class="card in" onclick="quickFilter('in')"><h3>Gọi đến</h3><p id="in">0</p></div>
     <div class="card out" onclick="quickFilter('out')"><h3>Gọi đi</h3><p id="out">0</p></div>
     <div class="card miss" onclick="quickFilter('miss')"><h3>Gọi nhỡ</h3><p id="miss">0</p></div>
     <div class="card handled" onclick="quickFilter('handled')"><h3>Nhỡ đã xử lý</h3><p id="missHandled">0</p></div>
     <div class="card unhandled" onclick="quickFilter('unhandled')"><h3>Nhỡ chưa xử lý</h3><p id="missUnhandled">0</p></div>
-    <div class="card unique" onclick="quickFilter('all')"><h3>Đơn xử lý</h3><p id="uniqueCount">0</p></div>
     <div class="card device" onclick="focusDeviceFilter()"><h3>Số máy</h3><p id="deviceCount">0</p></div>
 </div>
 
