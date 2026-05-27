@@ -68,6 +68,8 @@ button{
 button:hover{ background:#1d4ed8; }
 
 .stats{
+    flex-wrap:nowrap;
+    overflow-x:auto;
     display:flex;
     gap:15px;
     margin-bottom:20px;
@@ -75,9 +77,9 @@ button:hover{ background:#1d4ed8; }
 }
 
 .card{
-    flex:1 1 180px;
-    min-width:180px;
-    max-width:220px;
+    flex:1 1 0;
+    min-width:0;
+    max-width:none;
     background:#fff;
     padding:15px;
     border-radius:12px;
@@ -94,7 +96,7 @@ button:hover{ background:#1d4ed8; }
 
 .card h3{
     margin:0;
-    font-size:14px;
+    font-size:13px;
     color:#888;
     white-space:nowrap;
 }
