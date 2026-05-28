@@ -201,7 +201,7 @@ tr.missed-unhandled{
 </style>
 </head>
 
-<body>
+<body style="display:none">
 
 <h2>📞 THỐNG KÊ CUỘC GỌI - 23028RNCAG (Xanh Lá) - V2134 ( Dương ) - SM-M515F ( Xử lý đơn ) </h2>
 
@@ -219,8 +219,8 @@ tr.missed-unhandled{
 <div class="controls">
     🔍 <input type="text" id="search" placeholder="Tìm số điện thoại">
     📅 <input type="date" id="dateFilter">
-    ⏱️ Từ <input type="time" id="timeFrom">
-    ⏱️ Đến <input type="time" id="timeTo">
+    ⏱️ Từ <input type="text" id="timeFrom" placeholder="HH:MM" inputmode="numeric" maxlength="5">
+    ⏱️ Đến <input type="text" id="timeTo" placeholder="HH:MM" inputmode="numeric" maxlength="5">
 
     📱
     <select id="deviceFilter">
@@ -419,8 +419,8 @@ function buildHandledNumberSetForCurrentFilter(){
     const s = document.getElementById("search").value.toLowerCase().trim();
     const df = document.getElementById("dateFilter").value;
     const deviceFilter = document.getElementById("deviceFilter").value;
-    const timeFrom = document.getElementById("timeFrom").value;
-    const timeTo = document.getElementById("timeTo").value;
+    const timeFrom = normalizeTimeInputValue(document.getElementById("timeFrom").value);
+    const timeTo = normalizeTimeInputValue(document.getElementById("timeTo").value);
 
     const set = new Set();
 
@@ -465,14 +465,64 @@ function formatDuration(totalSeconds){
     return parts.join(" ");
 }
 
+function normalizeTimeInputValue(v){
+    v = String(v || "").trim();
+
+    if(!v) return "";
+
+    // Cho nhập nhanh 8 -> 08:00, 830 -> 08:30, 0830 -> 08:30
+    const digits = v.replace(/\D/g, "");
+
+    if(digits.length === 1 || digits.length === 2){
+        const h = Math.min(Number(digits), 23);
+        return String(h).padStart(2, "0") + ":00";
+    }
+
+    if(digits.length === 3){
+        const h = Math.min(Number(digits.slice(0,1)), 23);
+        const m = Math.min(Number(digits.slice(1,3)), 59);
+        return String(h).padStart(2, "0") + ":" + String(m).padStart(2, "0");
+    }
+
+    if(digits.length >= 4){
+        const h = Math.min(Number(digits.slice(0,2)), 23);
+        const m = Math.min(Number(digits.slice(2,4)), 59);
+        return String(h).padStart(2, "0") + ":" + String(m).padStart(2, "0");
+    }
+
+    return "";
+}
+
+function setupTimeInput(id){
+    const el = document.getElementById(id);
+
+    el.addEventListener("input", () => {
+        let digits = el.value.replace(/\D/g, "").slice(0,4);
+
+        if(digits.length >= 3){
+            el.value = digits.slice(0,2) + ":" + digits.slice(2);
+        }else{
+            el.value = digits;
+        }
+    });
+
+    el.addEventListener("blur", () => {
+        el.value = normalizeTimeInputValue(el.value);
+        render();
+    });
+}
+
+setupTimeInput("timeFrom");
+setupTimeInput("timeTo");
+
 function render(){
     const s = document.getElementById("search").value.toLowerCase().trim();
     const df = document.getElementById("dateFilter").value;
     const tf = document.getElementById("typeFilter").value;
     const statusFilter = document.getElementById("statusFilter").value;
     const deviceFilter = document.getElementById("deviceFilter").value;
-    const timeFrom = document.getElementById("timeFrom").value;
-    const timeTo = document.getElementById("timeTo").value;
+    const timeFrom = normalizeTimeInputValue(document.getElementById("timeFrom").value);
+    const timeTo = normalizeTimeInputValue(document.getElementById("timeTo").value);
 
     filteredData = allData.filter(i => {
         const number = (i.number || "").toLowerCase();
@@ -710,6 +760,101 @@ function exportExcel(){
     a.download = `calls_${date}_${device}_${type}_${status}.csv`;
     a.click();
 }
+</script>
+
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import {
+  getAuth,
+  GoogleAuthProvider,
+  signInWithPopup,
+  onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+
+const firebaseConfigAuth = {
+    apiKey: "AIzaSyB1QF-K-Q4ELKROjAZ-cZldhD1zBaM52p8",
+    authDomain: "call1803.firebaseapp.com",
+    databaseURL: "https://call1803-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "call1803",
+    storageBucket: "call1803.firebasestorage.app",
+    messagingSenderId: "688440833313",
+    appId: "1:688440833313:web:7926e1a04c8f43493b3a60"
+};
+
+const authApp = initializeApp(firebaseConfigAuth, "authApp");
+const auth = getAuth(authApp);
+const provider = new GoogleAuthProvider();
+
+const EMAIL_DUOC_PHEP = "kythuatlado@gmail.com";
+
+function laNoiBo(){
+    return location.hostname === "192.168.1.202" ||
+           location.hostname === "localhost" ||
+           location.hostname === "127.0.0.1";
+}
+
+window.dangNhapGoogle = async function(){
+    try{
+        await signInWithPopup(auth, provider);
+    }catch(e){
+        alert("Lỗi đăng nhập: " + e.message);
+    }
+};
+
+onAuthStateChanged(auth, (user) => {
+
+    // Nội bộ LAN -> cho truy cập luôn
+    if(laNoiBo()){
+        document.body.style.display = "block";
+        return;
+    }
+
+    // Online -> bắt đăng nhập
+    if(!user){
+        document.body.innerHTML = `
+        <div style="
+            font-family:Arial;
+            text-align:center;
+            margin-top:100px;
+        ">
+            <h2>🔒 Vui lòng đăng nhập</h2>
+            <p>Chỉ tài khoản được cấp quyền mới truy cập được.</p>
+
+            <button onclick="dangNhapGoogle()" style="
+                padding:12px 25px;
+                font-size:18px;
+                border:none;
+                border-radius:10px;
+                background:#2563eb;
+                color:#fff;
+                cursor:pointer;
+            ">
+                Đăng nhập Google
+            </button>
+        </div>`;
+        return;
+    }
+
+    // Sai Gmail
+    if(user.email !== EMAIL_DUOC_PHEP){
+
+        document.body.innerHTML = `
+        <div style="
+            font-family:Arial;
+            text-align:center;
+            margin-top:100px;
+        ">
+            <h2>⛔ Không được phép truy cập</h2>
+            <p>${user.email}</p>
+        </div>`;
+
+        return;
+    }
+
+    // Đúng Gmail
+    document.body.style.display = "block";
+});
 </script>
 
 </body>
