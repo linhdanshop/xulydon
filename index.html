@@ -287,7 +287,28 @@ function getTodayVN(){
         .split("T")[0];
 }
 
-document.getElementById("dateFilter").value = getTodayVN();
+if(document.getElementById("dateFilter")) getVal("dateFilter") = getTodayVN();
+
+
+function getEl(id){
+    return document.getElementById(id);
+}
+
+function getVal(id, defaultValue = ""){
+    const el = getEl(id);
+    return el ? el.value : defaultValue;
+}
+
+function setText(id, value){
+    const el = getEl(id);
+    if(el) el.innerText = value;
+}
+
+function setHtml(id, value){
+    const el = getEl(id);
+    if(el) el.innerHTML = value;
+}
+
 
 const firebaseConfig = {
     databaseURL: "https://call1803-default-rtdb.asia-southeast1.firebasedatabase.app/"
@@ -390,7 +411,9 @@ function getHourMinute(timeStr){
 }
 
 function updateDeviceFilter(){
-    const select = document.getElementById("deviceFilter");
+    const select = getEl("deviceFilter");
+    if(!select) return;
+
     const current = select.value;
 
     const devices = [...new Set(allData.map(i => i.device || i._deviceKey || "Không rõ"))]
@@ -416,11 +439,11 @@ function normalizePhone(number){
 }
 
 function buildHandledNumberSetForCurrentFilter(){
-    const s = document.getElementById("search").value.toLowerCase().trim();
-    const df = document.getElementById("dateFilter").value;
-    const deviceFilter = document.getElementById("deviceFilter").value;
-    const timeFrom = normalizeTimeInputValue(document.getElementById("timeFrom").value);
-    const timeTo = normalizeTimeInputValue(document.getElementById("timeTo").value);
+    const s = getVal("search").toLowerCase().trim();
+    const df = getVal("dateFilter");
+    const deviceFilter = getVal("deviceFilter");
+    const timeFrom = normalizeTimeInputValue(getVal("timeFrom"));
+    const timeTo = normalizeTimeInputValue(getVal("timeTo"));
 
     const set = new Set();
 
@@ -494,7 +517,8 @@ function normalizeTimeInputValue(v){
 }
 
 function setupTimeInput(id){
-    const el = document.getElementById(id);
+    const el = getEl(id);
+    if(!el) return;
 
     el.addEventListener("input", () => {
         let digits = el.value.replace(/\D/g, "").slice(0,4);
@@ -516,13 +540,13 @@ setupTimeInput("timeFrom");
 setupTimeInput("timeTo");
 
 function render(){
-    const s = document.getElementById("search").value.toLowerCase().trim();
-    const df = document.getElementById("dateFilter").value;
-    const tf = document.getElementById("typeFilter").value;
-    const statusFilter = document.getElementById("statusFilter").value;
-    const deviceFilter = document.getElementById("deviceFilter").value;
-    const timeFrom = normalizeTimeInputValue(document.getElementById("timeFrom").value);
-    const timeTo = normalizeTimeInputValue(document.getElementById("timeTo").value);
+    const s = getVal("search").toLowerCase().trim();
+    const df = getVal("dateFilter");
+    const tf = getVal("typeFilter");
+    const statusFilter = getVal("statusFilter");
+    const deviceFilter = getVal("deviceFilter");
+    const timeFrom = normalizeTimeInputValue(getVal("timeFrom"));
+    const timeTo = normalizeTimeInputValue(getVal("timeTo"));
 
     filteredData = allData.filter(i => {
         const number = (i.number || "").toLowerCase();
@@ -631,26 +655,27 @@ function render(){
         </tr>`;
     });
 
-    document.getElementById("data").innerHTML = html;
-    document.getElementById("total").innerText = total;
-    document.getElementById("in").innerText = incoming;
-    document.getElementById("answeredCount").innerText = answeredCount;
-    document.getElementById("out").innerText = outgoing;
-    document.getElementById("miss").innerText = missed;
-    document.getElementById("missHandled").innerText = missHandled;
-    document.getElementById("missUnhandled").innerText = missUnhandled;
-    document.getElementById("uniqueCount").innerText = uniqueNumbers.size;
-    document.getElementById("deviceCount").innerText = visibleDevices.size;
+    setHtml("data", html);
+    setText("total", total));
+    setText("in", incoming));
+    setText("answeredCount", answeredCount));
+    setText("out", outgoing));
+    setText("miss", missed));
+    setText("missHandled", missHandled));
+    setText("missUnhandled", missUnhandled));
+    setText("uniqueCount", uniqueNumbers.size));
+    setText("deviceCount", visibleDevices.size));
 
-    document.getElementById("totalTalkTime").innerText = formatDuration(totalTalkSeconds);
-    document.getElementById("totalRingTime").innerText = formatDuration(totalRingSeconds);
-    document.getElementById("totalCallTime").innerText = formatDuration(totalTalkSeconds + totalRingSeconds);
+    setText("totalTalkTime", formatDuration(totalTalkSeconds));
+    setText("totalRingTime", formatDuration(totalRingSeconds));
+    setText("totalCallTime", formatDuration(totalTalkSeconds + totalRingSeconds));
 }
 
 
 function quickFilter(kind){
-    const typeFilter = document.getElementById("typeFilter");
-    const statusFilter = document.getElementById("statusFilter");
+    const typeFilter = getEl("typeFilter");
+    const statusFilter = getEl("statusFilter");
+    if(!typeFilter || !statusFilter) return;
 
     if(kind === "all"){
         typeFilter.value = "";
@@ -684,40 +709,75 @@ function quickFilter(kind){
 
     render();
 
-    document.querySelector(".table-wrap").scrollIntoView({
+    const tableWrap = document.querySelector(".table-wrap");
+    if(tableWrap) tableWrap.scrollIntoView({
         behavior:"smooth",
         block:"start"
     });
 }
 
 function focusDeviceFilter(){
-    const deviceFilter = document.getElementById("deviceFilter");
+    const deviceFilter = getEl("deviceFilter");
+    if(!deviceFilter) return;
     deviceFilter.focus();
 
-    document.querySelector(".controls").scrollIntoView({
+    const controlsWrap = document.querySelector(".controls");
+    if(controlsWrap) controlsWrap.scrollIntoView({
         behavior:"smooth",
         block:"start"
     });
 }
 
 function resetFilter(){
-    document.getElementById("search").value = "";
-    document.getElementById("dateFilter").value = getTodayVN();
-    document.getElementById("timeFrom").value = "";
-    document.getElementById("timeTo").value = "";
-    document.getElementById("deviceFilter").value = "";
-    document.getElementById("typeFilter").value = "";
-    document.getElementById("statusFilter").value = "";
+    const search = getEl("search");
+    const dateFilter = getEl("dateFilter");
+    const timeFrom = getEl("timeFrom");
+    const timeTo = getEl("timeTo");
+    const deviceFilter = getEl("deviceFilter");
+    const typeFilter = getEl("typeFilter");
+    const statusFilter = getEl("statusFilter");
+
+    if(search) search.value = "";
+    if(dateFilter) dateFilter.value = getTodayVN();
+    if(timeFrom) timeFrom.value = "";
+    if(timeTo) timeTo.value = "";
+    if(deviceFilter) deviceFilter.value = "";
+    if(typeFilter) typeFilter.value = "";
+    if(statusFilter) statusFilter.value = "";
+
     render();
 }
 
-document.getElementById("search").addEventListener("input", render);
-document.getElementById("dateFilter").addEventListener("change", render);
-document.getElementById("timeFrom").addEventListener("change", render);
-document.getElementById("timeTo").addEventListener("change", render);
-document.getElementById("deviceFilter").addEventListener("change", render);
-document.getElementById("typeFilter").addEventListener("change", render);
-document.getElementById("statusFilter").addEventListener("change", render);
+function getVal(id, defaultValue = ""){
+    const el = getEl(id);
+    return el ? el.value : defaultValue;
+}
+
+function setText(id, value){
+    const el = getEl(id);
+    if(el) el.innerText = value;
+}
+
+function setHtml(id, value){
+    const el = getEl(id);
+    if(el) el.innerHTML = value;
+}
+
+    getVal("timeFrom") = "";
+    getVal("timeTo") = "";
+    getVal("deviceFilter") = "";
+    getVal("typeFilter") = "";
+    getVal("statusFilter") = "";
+    render();
+}
+
+["search","dateFilter","timeFrom","timeTo","deviceFilter","typeFilter","statusFilter"].forEach(id => {
+    const el = getEl(id);
+    if(el){
+        const eventName = id === "search" ? "input" : "change";
+        el.addEventListener(eventName, render);
+    }
+});
 
 function exportExcel(){
     let csv = "\uFEFFSTT,Máy,SĐT,Loại,Trạng thái,Talk,Ring,Thời gian\n";
@@ -752,10 +812,10 @@ function exportExcel(){
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
 
-    const date = document.getElementById("dateFilter").value || "all-date";
-    const device = document.getElementById("deviceFilter").value || "all-device";
-    const type = document.getElementById("typeFilter").value || "all-type";
-    const status = document.getElementById("statusFilter").value || "all-status";
+    const date = getVal("dateFilter") || "all-date";
+    const device = getVal("deviceFilter") || "all-device";
+    const type = getVal("typeFilter") || "all-type";
+    const status = getVal("statusFilter") || "all-status";
 
     a.download = `calls_${date}_${device}_${type}_${status}.csv`;
     a.click();
@@ -789,14 +849,9 @@ const provider = new GoogleAuthProvider();
 const EMAIL_DUOC_PHEP = "kythuatlado@gmail.com";
 
 function laNoiBo(){
-    return location.hostname.startsWith("192.168.") ||
+    return location.hostname === "192.168.1.202" ||
            location.hostname === "localhost" ||
            location.hostname === "127.0.0.1";
-}
-
-// Hiện giao diện ngay nếu là mạng nội bộ
-if(laNoiBo()){
-    document.body.style.display = "block";
 }
 
 window.dangNhapGoogle = async function(){
