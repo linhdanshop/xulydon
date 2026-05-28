@@ -789,9 +789,14 @@ const provider = new GoogleAuthProvider();
 const EMAIL_DUOC_PHEP = "kythuatlado@gmail.com";
 
 function laNoiBo(){
-    return location.hostname === "192.168.1.202" ||
+    return location.hostname.startsWith("192.168.") ||
            location.hostname === "localhost" ||
            location.hostname === "127.0.0.1";
+}
+
+// Hiện giao diện ngay nếu là mạng nội bộ
+if(laNoiBo()){
+    document.body.style.display = "block";
 }
 
 window.dangNhapGoogle = async function(){
