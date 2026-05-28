@@ -17,38 +17,68 @@ h2{ margin-top:0; }
 .time-summary{
     display:flex;
     flex-wrap:nowrap;
-    overflow-x:auto;
-    gap:22px;
-    align-items:center;
+    gap:18px;
+    align-items:stretch;
     margin:10px 0 20px;
-    padding:18px 24px;
-    background:linear-gradient(135deg,#2563eb,#4f46e5);
-    border-radius:18px;
-    box-shadow:0 8px 24px rgba(37,99,235,0.25);
-    color:#fff;
-    font-size:16px;
-    font-weight:bold;
+    overflow-x:auto;
 }
 
-.time-summary span{
-    display:inline-block;
+.time-box{
+    min-width:280px;
+    display:flex;
+    align-items:center;
+    gap:16px;
+    padding:18px 22px;
+    background:#fff;
+    border-radius:18px;
+    box-shadow:0 8px 22px rgba(0,0,0,0.08);
+    border-left:5px solid #2563eb;
 }
+
+.time-box.talk{ border-left-color:#16a34a; }
+.time-box.ring{ border-left-color:#f59e0b; }
+.time-box.alltime{ border-left-color:#2563eb; }
+
+.time-icon{
+    width:52px;
+    height:52px;
+    border-radius:999px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:28px;
+    color:#fff;
+    background:#2563eb;
+}
+
+.time-box.talk .time-icon{ background:#16a34a; }
+.time-box.ring .time-icon{ background:#f59e0b; }
+.time-box.alltime .time-icon{ background:#2563eb; }
 
 .time-summary .label{
-    color:rgba(255,255,255,0.85);
+    color:#333;
+    font-size:15px;
+    font-weight:600;
+    margin-bottom:6px;
 }
 
 .time-summary .value{
-    color:#fff;
-    font-size:20px;
+    color:#111;
+    font-size:21px;
+    font-weight:800;
 }
 
 .controls{
-    margin-bottom:15px;
+    margin-bottom:18px;
     display:flex;
-    flex-wrap:wrap;
+    flex-wrap:nowrap;
+    overflow-x:auto;
     gap:10px;
     align-items:center;
+    background:#fff;
+    padding:14px;
+    border-radius:14px;
+    box-shadow:0 4px 14px rgba(0,0,0,0.06);
 }
 
 input, select{
@@ -68,6 +98,22 @@ button{
 }
 
 button:hover{ background:#1d4ed8; }
+
+.controls input,
+.controls select,
+.controls button{
+    height:44px;
+    box-sizing:border-box;
+    flex:0 0 auto;
+}
+
+#search{ width:220px; }
+#dateFilter{ width:170px; }
+#timeFrom,#timeTo{ width:130px; }
+#deviceFilter{ width:170px; }
+#typeFilter{ width:170px; }
+#statusFilter{ width:190px; }
+
 
 .stats{
     flex-wrap:nowrap;
@@ -209,14 +255,29 @@ tr.missed-unhandled{
 <h2>📞 THỐNG KÊ CUỘC GỌI - 23028RNCAG (Xanh Lá) - V2134 ( Dương ) - SM-M515F ( Xử lý đơn ) </h2>
 
 <div class="time-summary">
-    <span class="label">Tổng nghe máy:</span>
-    <span class="value" id="totalTalkTime">0 giây</span>
-    <span>|</span>
-    <span class="label">Tổng đổ chuông:</span>
-    <span class="value" id="totalRingTime">0 giây</span>
-    <span>|</span>
-    <span class="label">Tổng thời lượng:</span>
-    <span class="value" id="totalCallTime">0 giây</span>
+    <div class="time-box talk">
+        <div class="time-icon">🎧</div>
+        <div>
+            <div class="label">Tổng nghe máy</div>
+            <div class="value" id="totalTalkTime">0 giây</div>
+        </div>
+    </div>
+
+    <div class="time-box ring">
+        <div class="time-icon">🔔</div>
+        <div>
+            <div class="label">Tổng đổ chuông</div>
+            <div class="value" id="totalRingTime">0 giây</div>
+        </div>
+    </div>
+
+    <div class="time-box alltime">
+        <div class="time-icon">⏱️</div>
+        <div>
+            <div class="label">Tổng thời lượng</div>
+            <div class="value" id="totalCallTime">0 giây</div>
+        </div>
+    </div>
 </div>
 
 <div class="controls">
