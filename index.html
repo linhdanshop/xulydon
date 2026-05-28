@@ -273,6 +273,56 @@ tr.missed-unhandled{
     font-weight:bold;
     font-size:12px;
 }
+
+/* ===== FIX THANH LỌC: 1 DÒNG, KHÔNG CUỘN NGANG ===== */
+.controls{
+    margin-bottom:14px !important;
+    display:flex !important;
+    flex-wrap:nowrap !important;
+    gap:6px !important;
+    align-items:center !important;
+    background:#fff !important;
+    padding:10px !important;
+    border-radius:14px !important;
+    box-shadow:0 4px 12px rgba(0,0,0,0.06) !important;
+    overflow:visible !important;
+}
+
+.controls input,
+.controls select,
+.controls button{
+    height:38px !important;
+    box-sizing:border-box !important;
+    flex:0 0 auto !important;
+    font-size:13px !important;
+    padding:6px 8px !important;
+}
+
+.controls select{
+    padding-right:22px !important;
+}
+
+#search{ width:155px !important; }
+#dateFilter{ width:132px !important; }
+#timeFrom,#timeTo{ width:92px !important; }
+#deviceFilter{ width:125px !important; }
+#typeFilter{ width:135px !important; }
+#statusFilter{ width:145px !important; }
+
+.controls button{
+    width:68px !important;
+    padding:0 6px !important;
+    white-space:nowrap !important;
+}
+
+.controls{
+    scrollbar-width:none !important;
+}
+
+.controls::-webkit-scrollbar{
+    display:none !important;
+}
+
 </style>
 </head>
 
