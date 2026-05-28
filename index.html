@@ -102,6 +102,33 @@ button:hover{ background:#1d4ed8; }
 .controls input,
 .controls select,
 .controls button{
+    height:40px;
+    box-sizing:border-box;
+    flex:0 0 auto;
+    font-size:14px;
+}
+
+#search{ width:180px; }
+#dateFilter{ width:145px; }
+
+#timeFrom,
+#timeTo{
+    width:105px;
+}
+
+#deviceFilter{ width:145px; }
+#typeFilter{ width:160px; }
+#statusFilter{ width:170px; }
+
+.controls button{
+    padding:0 14px;
+    white-space:nowrap;
+}
+
+
+.controls input,
+.controls select,
+.controls button{
     height:44px;
     box-sizing:border-box;
     flex:0 0 auto;
@@ -286,12 +313,10 @@ tr.missed-unhandled{
     ⏱️ Từ <input type="time" id="timeFrom">
     ⏱️ Đến <input type="time" id="timeTo">
 
-    📱
     <select id="deviceFilter">
         <option value="">Tất cả máy</option>
     </select>
 
-    📞
     <select id="typeFilter">
         <option value="">Tất cả cuộc gọi</option>
         <option value="Gọi đến">Gọi đến</option>
@@ -299,15 +324,14 @@ tr.missed-unhandled{
         <option value="Gọi nhỡ">Gọi nhỡ</option>
     </select>
 
-    ✅
     <select id="statusFilter">
         <option value="">Tất cả trạng thái</option>
         <option value="handled">Gọi nhỡ đã xử lý</option>
         <option value="unhandled">Gọi nhỡ chưa xử lý</option>
     </select>
 
-    <button onclick="resetFilter()">🔄 Reset lọc</button>
-    <button onclick="exportExcel()">📊 Export</button>
+    <button onclick="resetFilter()">Reset</button>
+    <button onclick="exportExcel()">Export</button>
 </div>
 
 <div class="stats">
