@@ -616,10 +616,12 @@ const db = firebase.database();
 let allData = [];
 let filteredData = [];
 let errorLogs = [];
+let embeddedErrorLogs = [];
 
 db.ref("calls").on("value", snapshot => {
     const data = snapshot.val();
     let temp = [];
+    let embeddedErrors = [];
 
     if(data){
         for(let dateKey in data){
@@ -631,6 +633,12 @@ db.ref("calls").on("value", snapshot => {
                     item._dateKey = dateKey;
                     item._deviceKey = deviceKey;
                     item.device = item.device || deviceKey;
+
+                    if(item.errorLog){
+                        embeddedErrors.push(normalizeErrorLogItem(item, [dateKey, deviceKey, id]));
+                        continue;
+                    }
+
                     item._timestamp = parseTimeToTimestamp(item.time, dateKey);
 
                     temp.push(item);
@@ -656,6 +664,7 @@ db.ref("calls").on("value", snapshot => {
     });
 
     allData = Array.from(map.values());
+    embeddedErrorLogs = embeddedErrors;
     allData.sort((a,b) => (b._timestamp || 0) - (a._timestamp || 0));
 
     updateDeviceFilter();
@@ -731,6 +740,10 @@ function normalizePhone(number){
     return String(number || "")
         .replace(/\s+/g, "")
         .replace(/[^\d+]/g, "");
+}
+
+function isMissedCallType(type){
+    return String(type || "").toLowerCase().includes("nh");
 }
 
 function buildHandledNumberSetForCurrentFilter(){
@@ -842,11 +855,13 @@ function render(){
         const talk = Number(i.talkTime ?? i.duration ?? 0);
         const ring = Number(i.ringTime ?? 0);
         const number = i.number || "";
+        const missedType = isMissedCallType(i.type);
+        const talkForStats = missedType ? 0 : talk;
 
         visibleDevices.add(device);
         if(normalizePhone(number)) uniqueNumbers.add(normalizePhone(number));
 
-        totalTalkSeconds += talk;
+        totalTalkSeconds += talkForStats;
         totalRingSeconds += ring;
 
         total++;
@@ -855,7 +870,7 @@ function render(){
         else if(i.type === "Gọi đi") outgoing++;
         else if(i.type === "Gọi nhỡ") missed++;
 
-        if(talk > 0){
+        if(!missedType && talkForStats > 0){
             answeredCount++;
         }
 
@@ -893,7 +908,7 @@ function render(){
             <td>${number}</td>
             <td>${typeBadge}</td>
             <td>${statusText}</td>
-            <td>${talk}s</td>
+            <td>${talkForStats}s</td>
             <td>${ring}s</td>
             <td>${i.time || ""}</td>
         </tr>`;
@@ -998,6 +1013,7 @@ function exportExcel(){
         const device = i.device || i._deviceKey || "Không rõ";
         const talk = Number(i.talkTime ?? i.duration ?? 0);
         const ring = Number(i.ringTime ?? 0);
+        const talkForExport = isMissedCallType(i.type) ? 0 : talk;
 
         let status = "";
         if(i.type === "Gọi nhỡ"){
@@ -1011,7 +1027,7 @@ function exportExcel(){
             `"${i.number || ""}"`,
             `"${i.type || ""}"`,
             `"${status}"`,
-            talk,
+            talkForExport,
             ring,
             `"${i.time || ""}"`
         ].join(",") + "\n";
@@ -1107,6 +1123,22 @@ function flattenErrorLogs(value, pathParts = []){
     return Object.keys(value).flatMap(key => flattenErrorLogs(value[key], pathParts.concat(key)));
 }
 
+function normalizeErrorLogItem(value, pathParts = []){
+    return {
+        _local:false,
+        _dateKey:value._dateKey || pathParts[0] || getErrorDate(),
+        _sortTime:value.timestamp || parseTimeToTimestamp(value.time, pathParts[0] || getErrorDate()),
+        time:value.time || value.createdAt || "",
+        device:value.device || value.deviceName || "",
+        number:value.number || value.phone || "",
+        errorType:value.errorType || value.type || "Lỗi tool",
+        message:value.message || value.error || value.reason || value.detail || "",
+        source:value.source || "tool",
+        callId:value.callId || value.id || pathParts.join("/"),
+        raw:value
+    };
+}
+
 function renderErrorLogs(){
     const tbody = document.getElementById("errorLogData");
     const summary = document.getElementById("errorLogSummary");
@@ -1174,15 +1206,17 @@ async function loadErrorLogs(){
 
     try{
         const snapshot = await db.ref("callErrors/" + dateKey).once("value");
-        const remoteRows = flattenErrorLogs(snapshot.val());
+        const embeddedRows = embeddedErrorLogs.filter(i => i._dateKey === dateKey);
+        const remoteRows = embeddedRows.concat(flattenErrorLogs(snapshot.val()));
         const localRows = detectLocalCallErrors(dateKey);
 
         errorLogs = localRows.concat(remoteRows).sort((a,b) => (b._sortTime || 0) - (a._sortTime || 0));
         renderErrorLogs();
     }catch(e){
-        errorLogs = detectLocalCallErrors(dateKey);
+        const embeddedRows = embeddedErrorLogs.filter(i => i._dateKey === dateKey);
+        errorLogs = detectLocalCallErrors(dateKey).concat(embeddedRows).sort((a,b) => (b._sortTime || 0) - (a._sortTime || 0));
         renderErrorLogs();
-        if(summary) summary.innerText = "Không đọc được log Firebase: " + e.message + ". Đang hiển thị lỗi web tự phát hiện.";
+        console.warn("Cannot read callErrors, showing calls-embedded and web-detected errors only.", e);
     }
 }
 
