@@ -315,12 +315,136 @@ tr.missed-unhandled{
     white-space:nowrap !important;
 }
 
+.controls .error-log-btn{
+    width:92px !important;
+    background:#111827 !important;
+}
+
+.controls .error-log-btn.has-error{
+    background:#dc2626 !important;
+}
+
 .controls{
     scrollbar-width:none !important;
 }
 
 .controls::-webkit-scrollbar{
     display:none !important;
+}
+
+.error-modal{
+    position:fixed;
+    inset:0;
+    z-index:9999;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    padding:18px;
+    background:rgba(15,23,42,0.38);
+}
+
+.error-panel{
+    width:min(1080px, calc(100vw - 36px));
+    max-height:88vh;
+    display:flex;
+    flex-direction:column;
+    background:#fff;
+    border-radius:14px;
+    box-shadow:0 22px 60px rgba(15,23,42,0.28);
+    overflow:hidden;
+}
+
+.error-header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    padding:14px 16px;
+    background:#111827;
+    color:#fff;
+}
+
+.error-header h3{
+    margin:0;
+    font-size:18px;
+}
+
+.error-header button{
+    background:#374151;
+}
+
+.error-controls{
+    display:flex;
+    gap:10px;
+    align-items:center;
+    flex-wrap:wrap;
+    padding:12px 16px;
+    background:#f8fafc;
+    border-bottom:1px solid #e5e7eb;
+}
+
+.error-controls .danger{
+    background:#dc2626;
+}
+
+.error-summary{
+    padding:10px 16px;
+    color:#374151;
+    font-size:13px;
+    border-bottom:1px solid #e5e7eb;
+}
+
+.error-table-wrap{
+    overflow:auto;
+    padding:0 16px 16px;
+}
+
+.error-table{
+    width:100%;
+    border-collapse:collapse;
+    min-width:900px;
+}
+
+.error-table th{
+    position:sticky;
+    top:0;
+    z-index:1;
+    background:#1f2937;
+    color:#fff;
+    padding:10px 8px;
+    text-align:left;
+    font-size:13px;
+}
+
+.error-table td{
+    padding:10px 8px;
+    border-bottom:1px solid #e5e7eb;
+    font-size:13px;
+    vertical-align:top;
+}
+
+.error-table tr.local-error{
+    background:#fff7ed;
+}
+
+.error-table tr.remote-error{
+    background:#f8fafc;
+}
+
+.error-source{
+    display:inline-block;
+    padding:3px 7px;
+    border-radius:999px;
+    background:#e5e7eb;
+    color:#111827;
+    font-weight:700;
+    font-size:12px;
+}
+
+.error-message{
+    max-width:360px;
+    white-space:normal;
+    word-break:break-word;
 }
 
 </style>
@@ -382,6 +506,7 @@ tr.missed-unhandled{
 
     <button onclick="resetFilter()">Reset</button>
     <button onclick="exportExcel()">Export</button>
+    <button id="errorLogBtn" class="error-log-btn" onclick="openErrorLog()">Log lỗi</button>
 </div>
 
 <div class="stats">
@@ -412,6 +537,38 @@ tr.missed-unhandled{
 </thead>
 <tbody id="data"></tbody>
 </table>
+</div>
+
+<div id="errorLogModal" class="error-modal">
+    <div class="error-panel">
+        <div class="error-header">
+            <h3>Log lỗi cuộc gọi</h3>
+            <button onclick="closeErrorLog()">Đóng</button>
+        </div>
+        <div class="error-controls">
+            <label>Ngày <input type="date" id="errorDateFilter"></label>
+            <button onclick="loadErrorLogs()">Nạp log</button>
+            <button class="danger" onclick="deleteErrorLogsByDate()">Xóa theo ngày</button>
+        </div>
+        <div id="errorLogSummary" class="error-summary">Chưa nạp log.</div>
+        <div class="error-table-wrap">
+            <table class="error-table">
+                <thead>
+                    <tr>
+                        <th>STT</th>
+                        <th>Thời gian</th>
+                        <th>Máy</th>
+                        <th>SĐT</th>
+                        <th>Loại lỗi</th>
+                        <th>Nội dung</th>
+                        <th>Nguồn</th>
+                        <th>ID</th>
+                    </tr>
+                </thead>
+                <tbody id="errorLogData"></tbody>
+            </table>
+        </div>
+    </div>
 </div>
 
 </div>
@@ -458,6 +615,7 @@ const db = firebase.database();
 
 let allData = [];
 let filteredData = [];
+let errorLogs = [];
 
 db.ref("calls").on("value", snapshot => {
     const data = snapshot.val();
@@ -755,6 +913,7 @@ function render(){
     document.getElementById("totalTalkTime").innerText = formatDuration(totalTalkSeconds);
     document.getElementById("totalRingTime").innerText = formatDuration(totalRingSeconds);
     document.getElementById("totalCallTime").innerText = formatDuration(totalTalkSeconds + totalRingSeconds);
+    updateLocalErrorCount();
 }
 
 
@@ -869,6 +1028,183 @@ function exportExcel(){
 
     a.download = `calls_${date}_${device}_${type}_${status}.csv`;
     a.click();
+}
+
+function escapeHtml(value){
+    return String(value ?? "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+function getErrorDate(){
+    const input = document.getElementById("errorDateFilter");
+    return (input && input.value) || document.getElementById("dateFilter").value || getTodayVN();
+}
+
+function detectLocalCallErrors(dateKey){
+    const rows = [];
+
+    allData.forEach(i => {
+        const callDate = getDateFromTime(i.time) || i._dateKey || "";
+        if(dateKey && callDate !== dateKey && i._dateKey !== dateKey) return;
+
+        const missing = [];
+        const device = i.device || i._deviceKey || "";
+        const number = i.number || "";
+
+        if(!normalizePhone(number)) missing.push("Thiếu SĐT");
+        if(!device) missing.push("Thiếu máy");
+        if(!i.type) missing.push("Thiếu loại cuộc gọi");
+        if(!i.time) missing.push("Thiếu thời gian");
+
+        if(!missing.length) return;
+
+        rows.push({
+            _local:true,
+            _sortTime:i._timestamp || parseTimeToTimestamp(i.time, dateKey),
+            time:i.time || dateKey || "",
+            device:device || "Không rõ",
+            number:number,
+            errorType:"Dữ liệu cuộc gọi thiếu",
+            message:missing.join(", "),
+            source:"web-auto",
+            callId:[i._dateKey || dateKey || "", i._deviceKey || device || "", i._id || ""].filter(Boolean).join("/")
+        });
+    });
+
+    return rows;
+}
+
+function flattenErrorLogs(value, pathParts = []){
+    if(!value || typeof value !== "object") return [];
+
+    const looksLikeLog =
+        Object.prototype.hasOwnProperty.call(value, "message") ||
+        Object.prototype.hasOwnProperty.call(value, "error") ||
+        Object.prototype.hasOwnProperty.call(value, "errorType") ||
+        Object.prototype.hasOwnProperty.call(value, "number") ||
+        Object.prototype.hasOwnProperty.call(value, "device") ||
+        Object.prototype.hasOwnProperty.call(value, "time");
+
+    if(looksLikeLog){
+        return [{
+            _local:false,
+            _sortTime:value.timestamp || parseTimeToTimestamp(value.time, getErrorDate()),
+            time:value.time || value.createdAt || "",
+            device:value.device || value.deviceName || "",
+            number:value.number || value.phone || "",
+            errorType:value.errorType || value.type || "Lỗi tool",
+            message:value.message || value.error || value.reason || value.detail || "",
+            source:value.source || "tool",
+            callId:value.callId || value.id || pathParts.join("/"),
+            raw:value
+        }];
+    }
+
+    return Object.keys(value).flatMap(key => flattenErrorLogs(value[key], pathParts.concat(key)));
+}
+
+function renderErrorLogs(){
+    const tbody = document.getElementById("errorLogData");
+    const summary = document.getElementById("errorLogSummary");
+
+    if(!tbody || !summary) return;
+
+    if(!errorLogs.length){
+        tbody.innerHTML = `<tr><td colspan="8">Không có log lỗi trong ngày này.</td></tr>`;
+        summary.innerText = "Không có log lỗi trong ngày này.";
+        return;
+    }
+
+    const localCount = errorLogs.filter(i => i._local).length;
+    const remoteCount = errorLogs.length - localCount;
+
+    summary.innerText = `Tổng ${errorLogs.length} lỗi: ${localCount} lỗi web tự phát hiện, ${remoteCount} lỗi tool/backend gửi lên.`;
+
+    tbody.innerHTML = errorLogs.map((i, index) => `
+        <tr class="${i._local ? "local-error" : "remote-error"}">
+            <td>${index + 1}</td>
+            <td>${escapeHtml(i.time)}</td>
+            <td>${escapeHtml(i.device)}</td>
+            <td>${escapeHtml(i.number)}</td>
+            <td>${escapeHtml(i.errorType)}</td>
+            <td class="error-message">${escapeHtml(i.message)}</td>
+            <td><span class="error-source">${escapeHtml(i.source)}</span></td>
+            <td>${escapeHtml(i.callId)}</td>
+        </tr>
+    `).join("");
+}
+
+function updateLocalErrorCount(){
+    const btn = document.getElementById("errorLogBtn");
+    if(!btn) return;
+
+    const dateKey = document.getElementById("dateFilter").value || getTodayVN();
+    const count = detectLocalCallErrors(dateKey).length;
+
+    btn.innerText = count ? `Log lỗi (${count})` : "Log lỗi";
+    btn.classList.toggle("has-error", count > 0);
+}
+
+function openErrorLog(){
+    const modal = document.getElementById("errorLogModal");
+    const dateInput = document.getElementById("errorDateFilter");
+
+    if(dateInput && !dateInput.value){
+        dateInput.value = document.getElementById("dateFilter").value || getTodayVN();
+    }
+
+    if(modal) modal.style.display = "flex";
+    loadErrorLogs();
+}
+
+function closeErrorLog(){
+    const modal = document.getElementById("errorLogModal");
+    if(modal) modal.style.display = "none";
+}
+
+async function loadErrorLogs(){
+    const dateKey = getErrorDate();
+    const summary = document.getElementById("errorLogSummary");
+
+    if(summary) summary.innerText = "Đang nạp log...";
+
+    try{
+        const snapshot = await db.ref("callErrors/" + dateKey).once("value");
+        const remoteRows = flattenErrorLogs(snapshot.val());
+        const localRows = detectLocalCallErrors(dateKey);
+
+        errorLogs = localRows.concat(remoteRows).sort((a,b) => (b._sortTime || 0) - (a._sortTime || 0));
+        renderErrorLogs();
+    }catch(e){
+        errorLogs = detectLocalCallErrors(dateKey);
+        renderErrorLogs();
+        if(summary) summary.innerText = "Không đọc được log Firebase: " + e.message + ". Đang hiển thị lỗi web tự phát hiện.";
+    }
+}
+
+async function deleteErrorLogsByDate(){
+    const dateKey = getErrorDate();
+    if(!confirm("Xóa toàn bộ log lỗi tool/backend ngày " + dateKey + "? Lỗi web tự phát hiện từ dữ liệu calls vẫn sẽ còn nếu dữ liệu gốc chưa sửa.")){
+        return;
+    }
+
+    try{
+        await db.ref("callErrors/" + dateKey).remove();
+        await loadErrorLogs();
+    }catch(e){
+        alert("Không xóa được log lỗi: " + e.message);
+    }
+}
+
+const errorLogModal = document.getElementById("errorLogModal");
+if(errorLogModal){
+    errorLogModal.addEventListener("click", function(e){
+        if(e.target === errorLogModal) closeErrorLog();
+    });
 }
 </script>
 
